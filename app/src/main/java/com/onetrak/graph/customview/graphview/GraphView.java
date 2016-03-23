@@ -10,12 +10,14 @@ import android.graphics.Path;
 import android.graphics.RectF;
 import android.support.v4.content.ContextCompat;
 import android.util.AttributeSet;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 
 import com.onetrak.graph.customview.R;
 
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collections;
 
 /**
@@ -61,6 +63,7 @@ public class GraphView extends View {
     float graphStrokeWidth;
     float goalStart;
     float goalEnd;
+    int stripeId;
 
     // Layout arrays
     float[] valuesRealHeight;
@@ -83,6 +86,11 @@ public class GraphView extends View {
     public static final double graphRatio = (float) 1 - headerRatio - footerRatio - 2 * borderRatio;
     public static final float stripLength = 5f;
 
+    // Event handling
+    private static final int MAX_CLICK_DURATION = 200;
+    private long startClickTime = 0;
+
+
     public GraphView(Context context, AttributeSet attrs) {
         super(context, attrs);
         TypedArray a = context.getTheme().obtainStyledAttributes(
@@ -96,6 +104,7 @@ public class GraphView extends View {
         mGraphLineColor = a.getInteger(R.styleable.GraphView_graph_line_color, 0);
         mTextColor = a.getInteger(R.styleable.GraphView_text_color, 0);
         mDesiredWidth = a.getInteger(R.styleable.GraphView_real_width, 0);
+
 
         a.recycle();
         reinit();
@@ -148,6 +157,8 @@ public class GraphView extends View {
         graphPath = new Path();
 
         goalPath = new Path();
+
+        stripeId = -1;
     }
 
 
@@ -182,6 +193,7 @@ public class GraphView extends View {
 
             // Counting stripeWidth and indents
             stripeWidth = w / months.length;
+
 
             // If stripe is too narrow, then
             // we will increase width of graph to required minimum
@@ -239,8 +251,31 @@ public class GraphView extends View {
             displayError(canvas);
         } else {
             drawBackground(canvas);
+
             drawGraphLines(canvas);
         }
+    }
+
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        switch (event.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                startClickTime = System.currentTimeMillis();
+
+                return true;
+            case MotionEvent.ACTION_UP:
+                long clickDuration = System.currentTimeMillis() - startClickTime;
+                if (clickDuration < MAX_CLICK_DURATION) {
+                    int x = (int) event.getX();
+                    stripeId = x / (int) stripeWidth;
+
+                    invalidate();
+                    requestLayout();
+                }
+                return true;
+        }
+        return false;
     }
 
     // Remove multiplication ?
@@ -258,6 +293,7 @@ public class GraphView extends View {
 
         drawBorderLines(canvas);
         drawTextLabelsUnderStripes(canvas);
+
         drawGoalLineAndText(canvas);
         drawHorizontalLinesAndText(canvas);
     }
@@ -344,6 +380,17 @@ public class GraphView extends View {
             canvas.drawCircle(circleCentresX[i], valuesRealHeight[i],
                     smallCircleRatio * canvas.getHeight(), mSmallCirclePaint);
         }
+
+        drawHighligthedCircles(canvas);
+    }
+
+    private void drawHighligthedCircles(Canvas canvas) {
+        if (stripeId != -1) {
+            canvas.drawCircle(circleCentresX[stripeId], valuesRealHeight[stripeId],
+                    2 * bigCircleRatio * canvas.getHeight(), mBigCirclePaint);
+            canvas.drawCircle(circleCentresX[stripeId], valuesRealHeight[stripeId],
+                    2 * smallCircleRatio * canvas.getHeight(), mSmallCirclePaint);
+        }
     }
 
     private void displayError(Canvas canvas) {
@@ -376,6 +423,7 @@ public class GraphView extends View {
     public void setMonths(String[] months) {
         this.months = months;
 
+        reinit();
         invalidate();
         requestLayout();
     }
@@ -387,6 +435,7 @@ public class GraphView extends View {
     public void setValues(Double[] values) {
         this.values = values;
 
+        reinit();
         invalidate();
         requestLayout();
     }
@@ -398,6 +447,7 @@ public class GraphView extends View {
     public void setmDesiredWidth(int mDesiredWidth) {
         this.mDesiredWidth = mDesiredWidth;
 
+        reinit();
         invalidate();
         requestLayout();
     }
@@ -410,6 +460,7 @@ public class GraphView extends View {
     public void setGoal(double mGoal) {
         this.mGoal = mGoal;
 
+        reinit();
         invalidate();
         requestLayout();
     }
