@@ -113,10 +113,32 @@ public class GraphView extends View {
 
 
         a.recycle();
-        reinit();
+        init();
     }
 
-    private void reinit() {
+    private void init() {
+        initPaints();
+
+        mErrRectF = new RectF();
+        mStripeRectF = new RectF();
+        graphPath = new Path();
+        goalPath = new Path();
+
+        upperTrianglePath = new Path();
+        upperTrianglePath.setFillType(Path.FillType.EVEN_ODD);
+        lowerTrianglePath = new Path();
+        lowerTrianglePath.setFillType(Path.FillType.EVEN_ODD);
+
+        stripeId = -1;
+        lowerTrianglePoints = new Point[3];
+        for (int i = 0; i < 3; ++i)
+            lowerTrianglePoints[i] = new Point();
+        upperTrianglePoints = new Point[3];
+        for (int i = 0; i < 3; ++i)
+            upperTrianglePoints[i] = new Point();
+    }
+
+    private void initPaints() {
         mErrRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mErrRectPaint.setColor(ContextCompat.getColor(getContext(), R.color.red));
 
@@ -161,24 +183,6 @@ public class GraphView extends View {
         mTrianglePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mTrianglePaint.setColor(mGraphLineColor);
         mTrianglePaint.setStyle(Paint.Style.FILL_AND_STROKE);
-
-
-        mErrRectF = new RectF();
-        mStripeRectF = new RectF();
-        graphPath = new Path();
-        goalPath = new Path();
-        upperTrianglePath = new Path();
-        upperTrianglePath.setFillType(Path.FillType.EVEN_ODD);
-        lowerTrianglePath = new Path();
-        lowerTrianglePath.setFillType(Path.FillType.EVEN_ODD);
-
-        stripeId = -1;
-        lowerTrianglePoints = new Point[3];
-        for (int i = 0; i < 3; ++i)
-            lowerTrianglePoints[i] = new Point();
-        upperTrianglePoints = new Point[3];
-        for (int i = 0; i < 3; ++i)
-            upperTrianglePoints[i] = new Point();
     }
 
 
@@ -232,32 +236,36 @@ public class GraphView extends View {
             mGraphPaint.setStrokeWidth(graphStrokeWidth);
             mGraphPaint.setPathEffect(new CornerPathEffect(stripeWidth / 10));
 
-            float lowerTrianglePadding = mTextPaint.getTextSize() / 2;
-            float upperTrianglePadding = mTextPaint.getTextSize() / 4;
-            float lowerTriangleBound = bigCircleRatio * h;
-
             precalculateLayoutArrays(h);
-
-            if (stripeId != - 1) {
-                lowerTrianglePoints[0].set((int) (stripeId * stripeWidth + stripeWidth / 2),
-                        (int) (labelsUnderY[stripeId] + lowerTrianglePadding));
-                lowerTrianglePoints[1].set((int) (stripeId * stripeWidth + 3 * stripeWidth / 4),
-                        (int) (h - lowerTriangleBound));
-                lowerTrianglePoints[2].set((int) (stripeId * stripeWidth + stripeWidth / 4),
-                        (int) (h - lowerTriangleBound));
-
-                float lowerTrHeight = lowerTrianglePoints[1].y - lowerTrianglePoints[0].y;
-
-                upperTrianglePoints[0].set((int) (stripeId * stripeWidth + stripeWidth / 2),
-                        (int) (topIndent + upperTrianglePadding + lowerTrHeight));
-                upperTrianglePoints[1].set((int) (stripeId * stripeWidth + 3 * stripeWidth / 4),
-                        (int) (topIndent + upperTrianglePadding));
-                upperTrianglePoints[2].set((int) (stripeId * stripeWidth + stripeWidth / 4),
-                        (int) (topIndent + upperTrianglePadding));
-            }
+            calculateTriangles(h);
         }
 
         setMeasuredDimension(w, h);
+    }
+
+    private void calculateTriangles(int h) {
+        float lowerTrianglePadding = mTextPaint.getTextSize() / 2;
+        float upperTrianglePadding = mTextPaint.getTextSize() / 4;
+        float lowerTriangleBound = bigCircleRatio * h;
+
+
+        if (stripeId != - 1) {
+            lowerTrianglePoints[0].set((int) (stripeId * stripeWidth + stripeWidth / 2),
+                    (int) (labelsUnderY[stripeId] + lowerTrianglePadding));
+            lowerTrianglePoints[1].set((int) (stripeId * stripeWidth + 3 * stripeWidth / 4),
+                    (int) (h - lowerTriangleBound));
+            lowerTrianglePoints[2].set((int) (stripeId * stripeWidth + stripeWidth / 4),
+                    (int) (h - lowerTriangleBound));
+
+            float lowerTrHeight = lowerTrianglePoints[1].y - lowerTrianglePoints[0].y;
+
+            upperTrianglePoints[0].set((int) (stripeId * stripeWidth + stripeWidth / 2),
+                    (int) (topIndent + upperTrianglePadding + lowerTrHeight));
+            upperTrianglePoints[1].set((int) (stripeId * stripeWidth + 3 * stripeWidth / 4),
+                    (int) (topIndent + upperTrianglePadding));
+            upperTrianglePoints[2].set((int) (stripeId * stripeWidth + stripeWidth / 4),
+                    (int) (topIndent + upperTrianglePadding));
+        }
     }
 
     private void precalculateLayoutArrays(int h) {
@@ -304,8 +312,8 @@ public class GraphView extends View {
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 startClickTime = System.currentTimeMillis();
-
                 return true;
+
             case MotionEvent.ACTION_UP:
                 long clickDuration = System.currentTimeMillis() - startClickTime;
                 if (clickDuration < MAX_CLICK_DURATION) {
@@ -437,23 +445,21 @@ public class GraphView extends View {
             canvas.drawCircle(circleCentresX[stripeId], valuesRealHeight[stripeId],
                     2 * smallCircleRatio * canvas.getHeight(), mSmallCirclePaint);
 
-            upperTrianglePath.reset();
-            lowerTrianglePath.reset();
-
-            lowerTrianglePath.moveTo(lowerTrianglePoints[1].x, lowerTrianglePoints[1].y);
-            lowerTrianglePath.lineTo(lowerTrianglePoints[0].x, lowerTrianglePoints[0].y);
-            lowerTrianglePath.lineTo(lowerTrianglePoints[2].x, lowerTrianglePoints[2].y);
-            lowerTrianglePath.close();
-
-            upperTrianglePath.moveTo(upperTrianglePoints[1].x, upperTrianglePoints[1].y);
-            upperTrianglePath.lineTo(upperTrianglePoints[0].x, upperTrianglePoints[0].y);
-            upperTrianglePath.lineTo(upperTrianglePoints[2].x, upperTrianglePoints[2].y);
-            upperTrianglePath.close();
-
-            canvas.drawPath(lowerTrianglePath, mTrianglePaint);
-            canvas.drawPath(upperTrianglePath, mTrianglePaint);
+            buildAndDrawTriangle(canvas, lowerTrianglePoints, lowerTrianglePath, mTrianglePaint);
+            buildAndDrawTriangle(canvas, upperTrianglePoints, upperTrianglePath, mTrianglePaint);
 
         }
+    }
+
+    private void buildAndDrawTriangle (Canvas canvas, Point[] trianglePoints, Path trianglePath, Paint trianglePaint) {
+        trianglePath.reset();
+
+        trianglePath.moveTo(trianglePoints[1].x, trianglePoints[1].y);
+        trianglePath.lineTo(trianglePoints[0].x, trianglePoints[0].y);
+        trianglePath.lineTo(trianglePoints[2].x, trianglePoints[2].y);
+        trianglePath.close();
+        canvas.drawPath(trianglePath, trianglePaint);
+
     }
 
     private void displayError(Canvas canvas) {
@@ -474,7 +480,7 @@ public class GraphView extends View {
     public void setColor(int mColor) {
         this.mGraphLineColor = mColor;
 
-        reinit();
+        init();
         invalidate();
         requestLayout();
     }
@@ -486,7 +492,7 @@ public class GraphView extends View {
     public void setMonths(String[] months) {
         this.months = months;
 
-        reinit();
+        init();
         invalidate();
         requestLayout();
     }
@@ -498,7 +504,7 @@ public class GraphView extends View {
     public void setValues(Double[] values) {
         this.values = values;
 
-        reinit();
+        init();
         invalidate();
         requestLayout();
     }
@@ -510,7 +516,7 @@ public class GraphView extends View {
     public void setmDesiredWidth(int mDesiredWidth) {
         this.mDesiredWidth = mDesiredWidth;
 
-        reinit();
+        init();
         invalidate();
         requestLayout();
     }
@@ -523,7 +529,7 @@ public class GraphView extends View {
     public void setGoal(double mGoal) {
         this.mGoal = mGoal;
 
-        reinit();
+        init();
         invalidate();
         requestLayout();
     }
@@ -535,7 +541,7 @@ public class GraphView extends View {
     public void setmBackColor1(int mBackColor1) {
         this.mBackColor1 = mBackColor1;
 
-        reinit();
+        init();
         invalidate();
         requestLayout();
     }
@@ -547,7 +553,7 @@ public class GraphView extends View {
     public void setmBackColor2(int mBackColor2) {
         this.mBackColor2 = mBackColor2;
 
-        reinit();
+        init();
         invalidate();
         requestLayout();
     }
@@ -559,7 +565,7 @@ public class GraphView extends View {
     public void setmBackLineColor(int mBackLineColor) {
         this.mBackLineColor = mBackLineColor;
 
-        reinit();
+        init();
         invalidate();
         requestLayout();
     }
@@ -571,7 +577,7 @@ public class GraphView extends View {
     public void setmGraphLineColor(int mGraphLineColor) {
         this.mGraphLineColor = mGraphLineColor;
 
-        reinit();
+        init();
         invalidate();
         requestLayout();
     }
@@ -583,7 +589,7 @@ public class GraphView extends View {
     public void setmTextColor(int mTextColor) {
         this.mTextColor = mTextColor;
 
-        reinit();
+        init();
         invalidate();
         requestLayout();
     }
