@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:custom="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    android:weightSum="10"
+    tools:context="com.onetrak.graph.customview.MainActivity">
+
+    <HorizontalScrollView
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_weight="5">
+
+        <com.onetrak.graph.customview.graphview.GraphView
+            android:id="@+id/graph"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            custom:back_color1="@color/grayLight"
+            custom:back_color2="@color/grayDark"
+            custom:back_line_color="@color/lineColor"
+            custom:graph_line_color="@color/graphColor"
+            custom:text_color="@color/textColor"/>
+            <!--custom:real_width="1000"/>-->
+    </HorizontalScrollView>
+
+    <Button
+        android:id="@+id/butt"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:onClick="onClick"
+        android:paddingLeft="100dp"
+        android:paddingRight="100dp"
+        android:layout_weight="9"
+        android:text="@string/buttonText" />
+
+</LinearLayout>

@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">CustomView</string>
+    <string name="buttonText">Reset data</string>
+    <string name="graphError">Use setMonths AND setValues to properly display the graph</string>
+    <string name="goalLineText">goal</string>
+    <string name="localMeasurementSystem">kg</string>
+</resources>
