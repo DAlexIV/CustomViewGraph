@@ -3,12 +3,15 @@ package com.onetrak.graph.customview.graphview;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.CornerPathEffect;
 import android.graphics.DashPathEffect;
+import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
 import android.graphics.RectF;
+import android.graphics.Shader;
 import android.support.v4.content.ContextCompat;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
@@ -51,9 +54,11 @@ public class GraphView extends View {
     Paint mBigCirclePaint;
     Paint mSmallCirclePaint;
     Paint mTrianglePaint;
+    Paint mGradPaint;
 
     // Paths
     Path graphPath;
+    Path gradPath;
     Path goalPath;
     Path upperTrianglePath;
     Path lowerTrianglePath;
@@ -84,7 +89,7 @@ public class GraphView extends View {
     public static final float footerRatio = 0.1f;
     public static final float arrowRatio = 0.1f;
     public static final int minStripeDp = 50;
-    public static final float textRatio = 0.5f;
+    public static final float textRatio = 0.62f;
     public static final double graphStep = 10;
     public static final float borderRatio = 0.1f;
     public static final float bigCircleRatio = 0.025f;
@@ -123,6 +128,7 @@ public class GraphView extends View {
         mStripeRectF = new RectF();
         graphPath = new Path();
         goalPath = new Path();
+        gradPath = new Path();
 
         upperTrianglePath = new Path();
         upperTrianglePath.setFillType(Path.FillType.EVEN_ODD);
@@ -161,6 +167,10 @@ public class GraphView extends View {
         mGraphPaint.setStrokeJoin(Paint.Join.ROUND);
         mGraphPaint.setStrokeCap(Paint.Cap.ROUND);
         mGraphPaint.setAntiAlias(true);
+
+        mGradPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mGradPaint.setStrokeWidth(0);
+
 
         mGoalPaint = new Paint();
         mGoalPaint.setAntiAlias(false);
@@ -235,6 +245,9 @@ public class GraphView extends View {
             mGoalPaint.setStrokeWidth(graphStrokeWidth / 2);
             mGraphPaint.setStrokeWidth(graphStrokeWidth);
             mGraphPaint.setPathEffect(new CornerPathEffect(stripeWidth / 10));
+            mGradPaint.setShader(new LinearGradient(0, 0, 0, getHeight(),
+                    Color.argb(160, Color.red(mGraphLineColor), Color.green(mGraphLineColor), Color.blue(mGraphLineColor)),
+                    Color.argb(0, 255, 255, 255), Shader.TileMode.MIRROR));
 
             precalculateLayoutArrays(h);
             calculateTriangles(h);
@@ -246,7 +259,7 @@ public class GraphView extends View {
     private void calculateTriangles(int h) {
         float lowerTrianglePadding = mTextPaint.getTextSize() / 2;
         float upperTrianglePadding = mTextPaint.getTextSize() / 4;
-        float lowerTriangleBound = bigCircleRatio * h;
+        float lowerTriangleBound = 0;
 
 
         if (stripeId != - 1) {
@@ -303,6 +316,7 @@ public class GraphView extends View {
             drawBackground(canvas);
 
             drawGraphLines(canvas);
+
         }
     }
 
@@ -343,7 +357,6 @@ public class GraphView extends View {
 
         drawBorderLines(canvas);
         drawTextLabelsUnderStripes(canvas);
-
         drawGoalLineAndText(canvas);
         drawHorizontalLinesAndText(canvas);
     }
@@ -389,9 +402,8 @@ public class GraphView extends View {
                     mTextPaint.getTextSize() / 2, value - mTextPaint.getTextSize() / 2, mGoalTextPaint);
 
             // Count constraints
-            goalStart = value - mTextPaint.getTextSize() / 2;
-            goalStart = value - mTextPaint.getTextSize() / 2;
-            goalEnd = value + mTextPaint.getTextSize();
+            goalStart = value - 3 * mTextPaint.getTextSize() / 2;
+            goalEnd = value;
         }
     }
 
@@ -416,15 +428,25 @@ public class GraphView extends View {
 
     private void drawGraphLines(Canvas canvas) {
         graphPath.reset();
+        gradPath.reset();
 
         // draw lines
         for (int i = 0; i < months.length; ++i) {
-            if (i == 0)
+            if (i == 0) {
                 graphPath.moveTo(circleCentresX[i], valuesRealHeight[i]);
-            else
+                gradPath.moveTo(circleCentresX[i], valuesRealHeight[i]);
+            }
+            else {
                 graphPath.lineTo(circleCentresX[i], valuesRealHeight[i]);
+                gradPath.lineTo(circleCentresX[i], valuesRealHeight[i]);
+            }
         }
 
+        gradPath.lineTo(circleCentresX[months.length - 1], canvas.getHeight() - belowIndent);
+        gradPath.lineTo(circleCentresX[0], canvas.getHeight() - belowIndent);
+        gradPath.close();
+
+        canvas.drawPath(gradPath, mGradPaint);
         canvas.drawPath(graphPath, mGraphPaint);
 
         for (int i = 0; i < months.length; ++i) {
