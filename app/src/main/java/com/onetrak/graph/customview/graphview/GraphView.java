@@ -71,6 +71,7 @@ public class GraphView extends View {
     float graphStrokeWidth;
     float goalStart;
     float goalEnd;
+    int mTextSize;
 
     Point[] lowerTrianglePoints;
     Point[] upperTrianglePoints;
@@ -84,6 +85,7 @@ public class GraphView extends View {
     float[] monthsMeasured;
 
     // Constants
+    public static float leftStripe;
     public static final float viewRatio = (float) 9 / 16;
     public static final float headerRatio = 0.05f;
     public static final float footerRatio = 0.1f;
@@ -96,6 +98,8 @@ public class GraphView extends View {
     public static final float smallCircleRatio = 0.0125f;
     public static final double graphRatio = (float) 1 - headerRatio - footerRatio - 2 * borderRatio;
     public static final float stripLength = 5f;
+    public final String testText = "70 "
+            + getContext().getString(R.string.localMeasurementSystem);
 
     // Event handling
     private static final int MAX_CLICK_DURATION = 200;
@@ -238,7 +242,8 @@ public class GraphView extends View {
 
             // Calculating textSize for labels under stripes months
             HelperLayoutClass.calculateOKTextSize(mTextPaint, textRatio * stripeWidth, months);
-
+            mTextSize = (int) mTextPaint.getTextSize();
+            leftStripe = mTextPaint.measureText(testText) + mTextSize / 2;
 
             // Changing width of lines with corrections after measurement
             graphStrokeWidth = h / 100;
@@ -247,7 +252,7 @@ public class GraphView extends View {
             mGraphPaint.setPathEffect(new CornerPathEffect(stripeWidth / 10));
             mGradPaint.setShader(new LinearGradient(0, 0, 0, getHeight(),
                     Color.argb(160, Color.red(mGraphLineColor), Color.green(mGraphLineColor), Color.blue(mGraphLineColor)),
-                    Color.argb(0, 255, 255, 255), Shader.TileMode.MIRROR));
+                    Color.argb(8, Color.red(mGraphLineColor), Color.green(mGraphLineColor), Color.blue(mGraphLineColor)), Shader.TileMode.MIRROR));
 
             precalculateLayoutArrays(h);
             calculateTriangles(h);
@@ -257,26 +262,26 @@ public class GraphView extends View {
     }
 
     private void calculateTriangles(int h) {
-        float lowerTrianglePadding = mTextPaint.getTextSize() / 2;
-        float upperTrianglePadding = mTextPaint.getTextSize() / 4;
+        float lowerTrianglePadding = mTextSize / 2;
+        float upperTrianglePadding = mTextSize / 4;
         float lowerTriangleBound = 0;
 
 
         if (stripeId != - 1) {
-            lowerTrianglePoints[0].set((int) (stripeId * stripeWidth + stripeWidth / 2),
+            lowerTrianglePoints[0].set((int) (leftStripe + stripeId * stripeWidth + stripeWidth / 2),
                     (int) (labelsUnderY[stripeId] + lowerTrianglePadding));
-            lowerTrianglePoints[1].set((int) (stripeId * stripeWidth + 3 * stripeWidth / 4),
+            lowerTrianglePoints[1].set((int) (leftStripe + stripeId * stripeWidth + 3 * stripeWidth / 4),
                     (int) (h - lowerTriangleBound));
-            lowerTrianglePoints[2].set((int) (stripeId * stripeWidth + stripeWidth / 4),
+            lowerTrianglePoints[2].set((int) (leftStripe + stripeId * stripeWidth + stripeWidth / 4),
                     (int) (h - lowerTriangleBound));
 
             float lowerTrHeight = lowerTrianglePoints[1].y - lowerTrianglePoints[0].y;
 
-            upperTrianglePoints[0].set((int) (stripeId * stripeWidth + stripeWidth / 2),
+            upperTrianglePoints[0].set((int) (leftStripe + stripeId * stripeWidth + stripeWidth / 2),
                     (int) (topIndent + upperTrianglePadding + lowerTrHeight));
-            upperTrianglePoints[1].set((int) (stripeId * stripeWidth + 3 * stripeWidth / 4),
+            upperTrianglePoints[1].set((int) (leftStripe + stripeId * stripeWidth + 3 * stripeWidth / 4),
                     (int) (topIndent + upperTrianglePadding));
-            upperTrianglePoints[2].set((int) (stripeId * stripeWidth + stripeWidth / 4),
+            upperTrianglePoints[2].set((int) (leftStripe + stripeId * stripeWidth + stripeWidth / 4),
                     (int) (topIndent + upperTrianglePadding));
         }
     }
@@ -287,7 +292,7 @@ public class GraphView extends View {
         circleCentresX = new float[values.length];
 
         for (int i = 0; i < values.length; ++i) {
-            circleCentresX[i] = stripeWidth * ((float) i + 0.5f);
+            circleCentresX[i] = leftStripe + stripeWidth * ((float) i + 0.5f);
             valuesRealHeight[i] = HelperLayoutClass.convertValuetoHeight(mGoal, values[i], values, h);
         }
 
@@ -301,8 +306,9 @@ public class GraphView extends View {
         labelsUnderX = new float[values.length];
         labelsUnderY = new float[values.length];
         for (int i = 0; i < months.length; ++i) {
-            labelsUnderX[i] = stripeWidth * i + 0.5f * (stripeWidth - mTextPaint.measureText(months[i]));
-            labelsUnderY[i] = h - belowIndent + mTextPaint.getTextSize();
+                labelsUnderX[i] = leftStripe + stripeWidth * i
+                    + 0.5f * (stripeWidth - mTextPaint.measureText(months[i]));
+            labelsUnderY[i] = h - belowIndent + mTextSize;
         }
     }
 
@@ -332,7 +338,7 @@ public class GraphView extends View {
                 long clickDuration = System.currentTimeMillis() - startClickTime;
                 if (clickDuration < MAX_CLICK_DURATION) {
                     int x = (int) event.getX();
-                    stripeId = x / (int) stripeWidth;
+                    stripeId = (int) ((x - leftStripe) /stripeWidth);
 
                     invalidate();
                     requestLayout();
@@ -346,9 +352,13 @@ public class GraphView extends View {
     private void drawBackground(Canvas canvas) {
         drawRectsTopAndBelow(canvas);
 
+        mStripeRectF.set(0, topIndent, leftStripe, canvas.getHeight() - belowIndent);
+        mStripePaint.setColor(mBackColor2);
+        canvas.drawRect(mStripeRectF, mStripePaint);
+
         for (int i = 0; i < months.length; ++i) {
-            mStripeRectF.set(stripeWidth * i, topIndent,
-                    stripeWidth * (i + 1), canvas.getHeight() - belowIndent);
+            mStripeRectF.set(leftStripe + stripeWidth * i, topIndent,
+                    leftStripe + stripeWidth * (i + 1), canvas.getHeight() - belowIndent);
             int curColorRes = (i % 2 == 0) ? mBackColor1 : mBackColor2;
             mStripePaint.setColor(curColorRes);
 
@@ -397,12 +407,12 @@ public class GraphView extends View {
             canvas.drawPath(goalPath, mGoalPaint);
 
             // Draw text
-            mGoalTextPaint.setTextSize(mTextPaint.getTextSize());
+            mGoalTextPaint.setTextSize(mTextSize);
             canvas.drawText(getContext().getString(R.string.goalLineText),
-                    mTextPaint.getTextSize() / 2, value - mTextPaint.getTextSize() / 2, mGoalTextPaint);
+                    mTextSize / 2, value - mTextSize / 2, mGoalTextPaint);
 
             // Count constraints
-            goalStart = value - 3 * mTextPaint.getTextSize() / 2;
+            goalStart = value - 3 * mTextSize / 2;
             goalEnd = value;
         }
     }
@@ -416,11 +426,11 @@ public class GraphView extends View {
         for (double curHeight = firstLineHeight; curHeight < max; curHeight += graphStep) {
             float value = HelperLayoutClass.convertValuetoHeight(mGoal, curHeight, values, canvas.getHeight());
 
-            if (value + 5 * mTextPaint.getTextSize() / 4 < goalStart || value > goalEnd) {
+            if (value < goalStart || value > goalEnd + 5 * mTextSize / 4) {
                 canvas.drawLine(0, value, canvas.getWidth(), value, mLinePaint);
                 canvas.drawText(Integer.toString((int) curHeight) + " "
-                                + getContext().getString(R.string.localMeasurementSystem), mTextPaint.getTextSize() / 4,
-                        value - mTextPaint.getTextSize() / 4, mTextPaint);
+                                + getContext().getString(R.string.localMeasurementSystem), mTextSize / 4,
+                        value - mTextSize / 4, mTextPaint);
             }
         }
 
