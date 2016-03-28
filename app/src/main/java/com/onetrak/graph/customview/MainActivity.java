@@ -10,7 +10,6 @@ import java.util.Random;
 
 public class MainActivity extends AppCompatActivity {
     GraphView mGraphView;
-    Random gen;
 
     boolean firstTypeSet = false;
 
@@ -21,7 +20,6 @@ public class MainActivity extends AppCompatActivity {
 
         mGraphView = (GraphView) findViewById(R.id.graph);
         setOtherData();
-        gen = new Random();
     }
 
     private void setData(String[] months, Double[] values, double mGoal) {
@@ -39,7 +37,7 @@ public class MainActivity extends AppCompatActivity {
             setData(new String[]{"March", "April", "May", "June", "July", "August",
                             "March", "April", "May", "June", "July", "August"},
                     new Double[]{95.4, 86.3, 70.0, 65.5, 59.3, 49.3,
-                            45.34, 65.5, 59.3, 49.3, 65.5, 59.3}, 80);
+                            45.34, 65.5, 59.3, 49.3, 65.5, 59.3}, 75);
             firstTypeSet = false;
         }
         else {

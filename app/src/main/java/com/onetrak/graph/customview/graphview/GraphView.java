@@ -10,13 +10,14 @@ import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Shader;
-import android.support.v4.content.ContextCompat;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.HorizontalScrollView;
 
 import com.onetrak.graph.customview.R;
 
@@ -27,6 +28,8 @@ import java.util.Collections;
  * Created by aleksey.ivanov on 21.03.2016.
  */
 public class GraphView extends View {
+    HorizontalScrollView hsv;
+
     // Public data
     String[] months;
     Double[] values;
@@ -93,7 +96,6 @@ public class GraphView extends View {
     public static final float viewRatio = (float) 9 / 16;
     public static final float headerRatio = 0.05f;
     public static final float footerRatio = 0.1f;
-    public static final float arrowRatio = 0.1f;
     public static final int minStripeDp = 50;
     public static final float textRatio = 0.62f;
     public static final double graphStep = 10;
@@ -124,7 +126,10 @@ public class GraphView extends View {
         mTextColor = a.getInteger(R.styleable.GraphView_text_color, 0);
         mDesiredWidth = a.getInteger(R.styleable.GraphView_real_width, 0);
 
-
+//        if (!(getParent() instanceof HorizontalScrollView))
+//            throw new IllegalArgumentException("You should wrap this class into HorizontalScrollView");
+//
+        hsv = (HorizontalScrollView) getParent();
         a.recycle();
         init();
     }
@@ -157,11 +162,11 @@ public class GraphView extends View {
 
     private void initPaints() {
         mErrRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mErrRectPaint.setColor(ContextCompat.getColor(getContext(), R.color.red));
+        mErrRectPaint.setColor(Color.RED);
 
         mErrTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mErrTextPaint.setTextSize(30);
-        mErrTextPaint.setColor(ContextCompat.getColor(getContext(), R.color.black));
+        mErrTextPaint.setColor(Color.BLACK);
 
         mStripePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
@@ -198,7 +203,7 @@ public class GraphView extends View {
         mBigCirclePaint.setStyle(Paint.Style.FILL_AND_STROKE);
 
         mSmallCirclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mSmallCirclePaint.setColor(ContextCompat.getColor(getContext(), R.color.white));
+        mSmallCirclePaint.setColor(Color.WHITE);
         mSmallCirclePaint.setStyle(Paint.Style.FILL_AND_STROKE);
 
         mTrianglePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -212,6 +217,8 @@ public class GraphView extends View {
         mHighlightPathPaint.setColor(mBackLineColor);
         mHighlightPathPaint.setStyle(Paint.Style.STROKE);
         mHighlightPathPaint.setShadowLayer(10f, 0.0f, 0.0f, Color.BLACK);
+
+
     }
 
 
@@ -338,7 +345,6 @@ public class GraphView extends View {
             drawBackground(canvas);
 
             drawGraphLines(canvas);
-
         }
     }
 
@@ -349,7 +355,10 @@ public class GraphView extends View {
             case MotionEvent.ACTION_DOWN:
                 startClickTime = System.currentTimeMillis();
                 return true;
-
+            case MotionEvent.ACTION_SCROLL:
+                invalidate();
+                requestLayout();
+                return true;
             case MotionEvent.ACTION_UP:
                 long clickDuration = System.currentTimeMillis() - startClickTime;
                 if (clickDuration < MAX_CLICK_DURATION) {
@@ -362,6 +371,8 @@ public class GraphView extends View {
                         requestLayout();
                     }
                 }
+                invalidate();
+                requestLayout();
                 return true;
         }
         return false;
@@ -537,6 +548,7 @@ public class GraphView extends View {
 
     }
 
+
     private void displayError(Canvas canvas) {
         float errWidth = mErrTextPaint.measureText(getContext().getString(R.string.graphError));
 
@@ -678,4 +690,6 @@ public class GraphView extends View {
     protected int getSuggestedMinimumHeight() {
         return 240;
     }
+
+
 }
