@@ -43,8 +43,8 @@ public class MainActivity extends AppCompatActivity {
             firstTypeSet = false;
         }
         else {
-            setData(new String[]{"March", "April", "May", "March", "April", "May"},
-                    new Double[]{64.1, 54.3, 67.4, 64.1, 54.3, 67.4}, 58.5);
+            setData(new String[]{"March", "April", "May", "March", "April"},
+                    new Double[]{64.1, 54.3, 67.4, 64.1, 54.3}, 58.5);
             firstTypeSet = true;
         }
     }

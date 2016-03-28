@@ -33,8 +33,9 @@ public class HelperLayoutClass {
     public static float setTextSizeForWidth(Paint paint, float desiredWidth,
                                             String text) {
 
+        final float testTextSize = 100;
+        paint.setTextSize(testTextSize);
         final float testWidth = paint.measureText(text);
-        final float testTextSize = paint.getTextSize();
 
         // Calculate the desired size as a proportion of our testTextSize.
         float desiredTextSize = testTextSize * desiredWidth / testWidth;
@@ -47,7 +48,7 @@ public class HelperLayoutClass {
     public static void calculateOKTextSize(Paint paint, float stripeWidth, String[] text) {
         float minTextSize = 1000;
         for (int i = 0; i < text.length; ++i) {
-            float currSize = HelperLayoutClass.setTextSizeForWidth(paint, stripeWidth, text[i]);
+            float currSize = setTextSizeForWidth(paint, stripeWidth, text[i]);
             if (currSize < minTextSize)
                 minTextSize = currSize;
         }

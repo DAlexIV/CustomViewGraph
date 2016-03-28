@@ -41,6 +41,7 @@ public class GraphView extends View {
     // Rects
     RectF mErrRectF;
     RectF mStripeRectF;
+    RectF mHighRectF;
 
     // Paints
     Paint mStripePaint;
@@ -55,13 +56,16 @@ public class GraphView extends View {
     Paint mSmallCirclePaint;
     Paint mTrianglePaint;
     Paint mGradPaint;
+    Paint mHighlightStripePaint;
+    Paint mHighlightPathPaint;
 
     // Paths
-    Path graphPath;
-    Path gradPath;
-    Path goalPath;
-    Path upperTrianglePath;
-    Path lowerTrianglePath;
+    Path mGraphPath;
+    Path mGradPath;
+    Path mGoalPath;
+    Path mUpperTrianglePath;
+    Path mLowerTrianglePath;
+    Path mHighlightPath;
     float[] intervals;
 
     // Layout sizes
@@ -130,14 +134,17 @@ public class GraphView extends View {
 
         mErrRectF = new RectF();
         mStripeRectF = new RectF();
-        graphPath = new Path();
-        goalPath = new Path();
-        gradPath = new Path();
+        mHighRectF = new RectF();
 
-        upperTrianglePath = new Path();
-        upperTrianglePath.setFillType(Path.FillType.EVEN_ODD);
-        lowerTrianglePath = new Path();
-        lowerTrianglePath.setFillType(Path.FillType.EVEN_ODD);
+        mGraphPath = new Path();
+        mGoalPath = new Path();
+        mGradPath = new Path();
+        mHighlightPath = new Path();
+
+        mUpperTrianglePath = new Path();
+        mUpperTrianglePath.setFillType(Path.FillType.EVEN_ODD);
+        mLowerTrianglePath = new Path();
+        mLowerTrianglePath.setFillType(Path.FillType.EVEN_ODD);
 
         stripeId = -1;
         lowerTrianglePoints = new Point[3];
@@ -197,6 +204,14 @@ public class GraphView extends View {
         mTrianglePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mTrianglePaint.setColor(mGraphLineColor);
         mTrianglePaint.setStyle(Paint.Style.FILL_AND_STROKE);
+
+        mHighlightStripePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mHighlightStripePaint.setStyle(Paint.Style.FILL_AND_STROKE);
+
+        mHighlightPathPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mHighlightPathPaint.setColor(mBackLineColor);
+        mHighlightPathPaint.setStyle(Paint.Style.STROKE);
+        mHighlightPathPaint.setShadowLayer(10f, 0.0f, 0.0f, Color.BLACK);
     }
 
 
@@ -230,20 +245,21 @@ public class GraphView extends View {
             belowIndent = (int) (h * footerRatio);
 
             // Counting stripeWidth and indents
-            stripeWidth = w / months.length;
+            stripeWidth = w / (months.length + 1);
 
 
             // If stripe is too narrow, then
             // we will increase width of graph to required minimum
             if (stripeWidth < HelperLayoutClass.dpToPixels(getResources(), minStripeDp)) {
                 stripeWidth = (int) HelperLayoutClass.dpToPixels(getResources(), minStripeDp);
-                w = (int) stripeWidth * months.length;
+                w = (int) (stripeWidth * (months.length + 1));
             }
 
             // Calculating textSize for labels under stripes months
             HelperLayoutClass.calculateOKTextSize(mTextPaint, textRatio * stripeWidth, months);
             mTextSize = (int) mTextPaint.getTextSize();
             leftStripe = mTextPaint.measureText(testText) + mTextSize / 2;
+            stripeWidth = (w - leftStripe) / months.length;
 
             // Changing width of lines with corrections after measurement
             graphStrokeWidth = h / 100;
@@ -264,10 +280,10 @@ public class GraphView extends View {
     private void calculateTriangles(int h) {
         float lowerTrianglePadding = mTextSize / 2;
         float upperTrianglePadding = mTextSize / 4;
-        float lowerTriangleBound = 0;
+        float lowerTriangleBound = belowIndent / 10;
 
 
-        if (stripeId != - 1) {
+        if (stripeId != -1) {
             lowerTrianglePoints[0].set((int) (leftStripe + stripeId * stripeWidth + stripeWidth / 2),
                     (int) (labelsUnderY[stripeId] + lowerTrianglePadding));
             lowerTrianglePoints[1].set((int) (leftStripe + stripeId * stripeWidth + 3 * stripeWidth / 4),
@@ -306,7 +322,7 @@ public class GraphView extends View {
         labelsUnderX = new float[values.length];
         labelsUnderY = new float[values.length];
         for (int i = 0; i < months.length; ++i) {
-                labelsUnderX[i] = leftStripe + stripeWidth * i
+            labelsUnderX[i] = leftStripe + stripeWidth * i
                     + 0.5f * (stripeWidth - mTextPaint.measureText(months[i]));
             labelsUnderY[i] = h - belowIndent + mTextSize;
         }
@@ -338,10 +354,13 @@ public class GraphView extends View {
                 long clickDuration = System.currentTimeMillis() - startClickTime;
                 if (clickDuration < MAX_CLICK_DURATION) {
                     int x = (int) event.getX();
-                    stripeId = (int) ((x - leftStripe) /stripeWidth);
+                    if (x >= leftStripe) {
+                        stripeId = (int) ((x - leftStripe) / stripeWidth);
 
-                    invalidate();
-                    requestLayout();
+                        //init();
+                        invalidate();
+                        requestLayout();
+                    }
                 }
                 return true;
         }
@@ -350,7 +369,6 @@ public class GraphView extends View {
 
     // Remove multiplication ?
     private void drawBackground(Canvas canvas) {
-        drawRectsTopAndBelow(canvas);
 
         mStripeRectF.set(0, topIndent, leftStripe, canvas.getHeight() - belowIndent);
         mStripePaint.setColor(mBackColor2);
@@ -365,10 +383,36 @@ public class GraphView extends View {
             canvas.drawRect(mStripeRectF, mStripePaint);
         }
 
+
         drawBorderLines(canvas);
+        drawRectsTopAndBelow(canvas);
         drawTextLabelsUnderStripes(canvas);
+        drawHighlightedStripe(canvas);
         drawGoalLineAndText(canvas);
         drawHorizontalLinesAndText(canvas);
+    }
+
+    private void drawHighlightedStripe(Canvas canvas) {
+        if (stripeId != -1) {
+            float xPos1 = leftStripe + stripeWidth * (stripeId - bigCircleRatio);
+            float xPos2 = leftStripe + stripeWidth * (stripeId + 1 + bigCircleRatio);
+
+            mHighlightPath.reset();
+            mHighlightPath.moveTo(xPos1, topIndent);
+            mHighlightPath.lineTo(xPos2, topIndent);
+            mHighlightPath.lineTo(xPos2, canvas.getHeight() - belowIndent);
+            mHighlightPath.lineTo(xPos1, canvas.getHeight() - belowIndent);
+            mHighlightPath.close();
+
+            canvas.drawPath(mHighlightPath, mHighlightPathPaint);
+
+            mHighRectF.set(leftStripe + stripeWidth * stripeId, topIndent,
+                    leftStripe + stripeWidth * (stripeId + 1), canvas.getHeight() - belowIndent);
+            mHighlightStripePaint.setColor(Color.WHITE);
+
+            canvas.drawRect(mHighRectF, mHighlightStripePaint);
+
+        }
     }
 
     private void drawTextLabelsUnderStripes(Canvas canvas) {
@@ -401,10 +445,10 @@ public class GraphView extends View {
             float value = HelperLayoutClass.convertValuetoHeight(mGoal, mGoal, values, canvas.getHeight());
 
             // Draw line
-            goalPath.reset();
-            goalPath.moveTo(0, value);
-            goalPath.lineTo(canvas.getWidth(), value);
-            canvas.drawPath(goalPath, mGoalPaint);
+            mGoalPath.reset();
+            mGoalPath.moveTo(0, value);
+            mGoalPath.lineTo(canvas.getWidth(), value);
+            canvas.drawPath(mGoalPath, mGoalPaint);
 
             // Draw text
             mGoalTextPaint.setTextSize(mTextSize);
@@ -437,27 +481,26 @@ public class GraphView extends View {
     }
 
     private void drawGraphLines(Canvas canvas) {
-        graphPath.reset();
-        gradPath.reset();
+        mGraphPath.reset();
+        mGradPath.reset();
 
         // draw lines
         for (int i = 0; i < months.length; ++i) {
             if (i == 0) {
-                graphPath.moveTo(circleCentresX[i], valuesRealHeight[i]);
-                gradPath.moveTo(circleCentresX[i], valuesRealHeight[i]);
-            }
-            else {
-                graphPath.lineTo(circleCentresX[i], valuesRealHeight[i]);
-                gradPath.lineTo(circleCentresX[i], valuesRealHeight[i]);
+                mGraphPath.moveTo(circleCentresX[i], valuesRealHeight[i]);
+                mGradPath.moveTo(circleCentresX[i], valuesRealHeight[i]);
+            } else {
+                mGraphPath.lineTo(circleCentresX[i], valuesRealHeight[i]);
+                mGradPath.lineTo(circleCentresX[i], valuesRealHeight[i]);
             }
         }
 
-        gradPath.lineTo(circleCentresX[months.length - 1], canvas.getHeight() - belowIndent);
-        gradPath.lineTo(circleCentresX[0], canvas.getHeight() - belowIndent);
-        gradPath.close();
+        mGradPath.lineTo(circleCentresX[months.length - 1], canvas.getHeight() - belowIndent);
+        mGradPath.lineTo(circleCentresX[0], canvas.getHeight() - belowIndent);
+        mGradPath.close();
 
-        canvas.drawPath(gradPath, mGradPaint);
-        canvas.drawPath(graphPath, mGraphPaint);
+        canvas.drawPath(mGradPath, mGradPaint);
+        canvas.drawPath(mGraphPath, mGraphPaint);
 
         for (int i = 0; i < months.length; ++i) {
             canvas.drawCircle(circleCentresX[i], valuesRealHeight[i],
@@ -477,13 +520,13 @@ public class GraphView extends View {
             canvas.drawCircle(circleCentresX[stripeId], valuesRealHeight[stripeId],
                     2 * smallCircleRatio * canvas.getHeight(), mSmallCirclePaint);
 
-            buildAndDrawTriangle(canvas, lowerTrianglePoints, lowerTrianglePath, mTrianglePaint);
-            buildAndDrawTriangle(canvas, upperTrianglePoints, upperTrianglePath, mTrianglePaint);
+            buildAndDrawTriangle(canvas, lowerTrianglePoints, mLowerTrianglePath, mTrianglePaint);
+            buildAndDrawTriangle(canvas, upperTrianglePoints, mUpperTrianglePath, mTrianglePaint);
 
         }
     }
 
-    private void buildAndDrawTriangle (Canvas canvas, Point[] trianglePoints, Path trianglePath, Paint trianglePaint) {
+    private void buildAndDrawTriangle(Canvas canvas, Point[] trianglePoints, Path trianglePath, Paint trianglePaint) {
         trianglePath.reset();
 
         trianglePath.moveTo(trianglePoints[1].x, trianglePoints[1].y);

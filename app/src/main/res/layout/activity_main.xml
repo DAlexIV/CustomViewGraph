@@ -15,7 +15,8 @@
     <HorizontalScrollView
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
-        android:layout_weight="5">
+        android:layout_weight="5"
+        android:scrollbars="none">
 
         <com.onetrak.graph.customview.graphview.GraphView
             android:id="@+id/graph"
@@ -26,7 +27,7 @@
             custom:back_line_color="@color/lineColor"
             custom:graph_line_color="@color/graphColor"
             custom:text_color="@color/textColor"/>
-            <!--custom:real_width="1000"/>-->
+            <!--custom:real_width="240"/>-->
     </HorizontalScrollView>
 
     <Button
