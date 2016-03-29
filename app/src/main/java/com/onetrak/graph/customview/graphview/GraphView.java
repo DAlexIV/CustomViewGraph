@@ -1,6 +1,5 @@
 package com.onetrak.graph.customview.graphview;
 
-import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
@@ -11,19 +10,19 @@ import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
-import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Shader;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.HorizontalScrollView;
 
 import com.onetrak.graph.customview.R;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 /**
  * Created by aleksey.ivanov on 21.03.2016.
@@ -102,15 +101,16 @@ public class GraphView extends View {
     public static final float footerRatio = 0.1f;
     public static final int minStripeDp = 50;
     public static final float textRatio = 0.62f;
-    public static final double graphStep = 10;
     public static final float borderRatio = 0.1f;
     public static final float bigCircleRatio = 0.025f;
     public static final float smallCircleRatio = 0.0125f;
     public static final double graphRatio = (float) 1 - headerRatio - footerRatio - 2 * borderRatio;
     public static final float stripLength = 5f;
+    public static final int preferredNumLines = 5;
     public final String testText = "70 " + getContext().getString(R.string.localMeasurementSystem);
+    public static int graphStep = 10;
     public static int framesPerSecond = 60;
-    public static long segmentDuration = 500;
+    public static long segmentDuration = 250;
 
     // Event handling
     private static final int MAX_CLICK_DURATION = 200;
@@ -223,8 +223,6 @@ public class GraphView extends View {
         mHighlightPathPaint.setColor(mBackLineColor);
         mHighlightPathPaint.setStyle(Paint.Style.STROKE);
         mHighlightPathPaint.setShadowLayer(10f, 0.0f, 0.0f, Color.BLACK);
-
-
     }
 
 
@@ -277,6 +275,7 @@ public class GraphView extends View {
             // Changing width of lines with corrections after measurement
             graphStrokeWidth = h / 100;
             mGoalPaint.setStrokeWidth(graphStrokeWidth / 2);
+            mLinePaint.setStrokeWidth(graphStrokeWidth / 4);
             mGraphPaint.setStrokeWidth(graphStrokeWidth);
             mGraphPaint.setPathEffect(new CornerPathEffect(stripeWidth / 10));
             mGradPaint.setShader(new LinearGradient(0, 0, 0, getHeight(),
@@ -325,7 +324,7 @@ public class GraphView extends View {
 
         for (int i = 0; i < values.length; ++i) {
             circleCentresX[i] = leftStripe + stripeWidth * ((float) i + 0.5f);
-            valuesRealHeight[i] = HelperLayoutClass.convertValuetoHeight(mGoal, values[i], values, h);
+            valuesRealHeight[i] = convertValuetoHeight(mGoal, values[i], values, h);
         }
 
         // Precalc textSizes
@@ -463,7 +462,7 @@ public class GraphView extends View {
 
     private void drawGoalLineAndText(Canvas canvas) {
         if (mGoal != 0) {
-            float value = HelperLayoutClass.convertValuetoHeight(mGoal, mGoal, values, canvas.getHeight());
+            float value = convertValuetoHeight(mGoal, mGoal, values, canvas.getHeight());
 
             // Draw line
             mGoalPath.reset();
@@ -486,10 +485,12 @@ public class GraphView extends View {
         double min = Collections.min(Arrays.asList(values));
         double max = Collections.max(Arrays.asList(values));
 
-        double firstLineHeight = (((int) min) / 10 + 1) * 10;
+        graphStep = (int) (max - min) / preferredNumLines;
+        double firstLineHeight = (int) (min + min % graphStep);
+
 
         for (double curHeight = firstLineHeight; curHeight < max; curHeight += graphStep) {
-            float value = HelperLayoutClass.convertValuetoHeight(mGoal, curHeight, values, canvas.getHeight());
+            float value = convertValuetoHeight(mGoal, curHeight, values, canvas.getHeight());
 
             if (value < goalStart || value > goalEnd + 5 * mTextSize / 4) {
                 canvas.drawLine(0, value, canvas.getWidth(), value, mLinePaint);
@@ -606,6 +607,20 @@ public class GraphView extends View {
 
         canvas.drawRect(mErrRectF, mErrRectPaint);
         canvas.drawText(getContext().getString(R.string.graphError), xPos, yPos, mErrTextPaint);
+    }
+
+    private float convertValuetoHeight(double mGoal, Double value, Double[] array, float canvasHeight) {
+        List<Double> valuesAndGoal = new ArrayList<>(Arrays.asList(array));
+
+        if (mGoal != 0)
+            valuesAndGoal.add(mGoal);
+
+        double min = Collections.min(valuesAndGoal);
+        double max = Collections.max(valuesAndGoal);
+
+        float indentValue = (headerRatio + borderRatio) * canvasHeight;
+        float scaledValue = (float) ((max - value) / (max - min) * graphRatio * canvasHeight);
+        return indentValue + scaledValue;
     }
 
     public int getColor() {
@@ -738,6 +753,4 @@ public class GraphView extends View {
     protected int getSuggestedMinimumHeight() {
         return 240;
     }
-
-
 }

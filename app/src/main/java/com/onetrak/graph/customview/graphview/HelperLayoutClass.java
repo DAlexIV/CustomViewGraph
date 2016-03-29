@@ -65,17 +65,5 @@ public class HelperLayoutClass {
         return metrics.widthPixels;
     }
 
-    static float convertValuetoHeight(double mGoal, Double value, Double[] array, float canvasHeigth) {
-        List<Double> valuesAndGoal = new ArrayList<>(Arrays.asList(array));
 
-        if (mGoal != 0)
-            valuesAndGoal.add(mGoal);
-
-        double min = Collections.min(valuesAndGoal);
-        double max = Collections.max(valuesAndGoal);
-
-        float indentValue = (GraphView.headerRatio + GraphView.borderRatio) * canvasHeigth;
-        float scaledValue = (float) ((max - value) / (max - min) * GraphView.graphRatio * canvasHeigth);
-        return indentValue + scaledValue;
-    }
 }
