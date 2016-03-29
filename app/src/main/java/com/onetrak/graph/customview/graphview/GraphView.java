@@ -1,5 +1,6 @@
 package com.onetrak.graph.customview.graphview;
 
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
@@ -28,7 +29,10 @@ import java.util.Collections;
  * Created by aleksey.ivanov on 21.03.2016.
  */
 public class GraphView extends View {
-    HorizontalScrollView hsv;
+    // Animation
+    long startTime;
+    long animationDuration;
+    long curTime;
 
     // Public data
     String[] months;
@@ -104,8 +108,9 @@ public class GraphView extends View {
     public static final float smallCircleRatio = 0.0125f;
     public static final double graphRatio = (float) 1 - headerRatio - footerRatio - 2 * borderRatio;
     public static final float stripLength = 5f;
-    public final String testText = "70 "
-            + getContext().getString(R.string.localMeasurementSystem);
+    public final String testText = "70 " + getContext().getString(R.string.localMeasurementSystem);
+    public static int framesPerSecond = 60;
+    public static long segmentDuration = 500;
 
     // Event handling
     private static final int MAX_CLICK_DURATION = 200;
@@ -129,7 +134,6 @@ public class GraphView extends View {
 //        if (!(getParent() instanceof HorizontalScrollView))
 //            throw new IllegalArgumentException("You should wrap this class into HorizontalScrollView");
 //
-        hsv = (HorizontalScrollView) getParent();
         a.recycle();
         init();
     }
@@ -158,6 +162,8 @@ public class GraphView extends View {
         upperTrianglePoints = new Point[3];
         for (int i = 0; i < 3; ++i)
             upperTrianglePoints[i] = new Point();
+
+        startTime = System.currentTimeMillis();
     }
 
     private void initPaints() {
@@ -277,6 +283,9 @@ public class GraphView extends View {
                     Color.argb(160, Color.red(mGraphLineColor), Color.green(mGraphLineColor), Color.blue(mGraphLineColor)),
                     Color.argb(8, Color.red(mGraphLineColor), Color.green(mGraphLineColor), Color.blue(mGraphLineColor)), Shader.TileMode.MIRROR));
 
+            // Animation
+            animationDuration = segmentDuration * (months.length - 1);
+
             precalculateLayoutArrays(h);
             calculateTriangles(h);
         }
@@ -290,7 +299,7 @@ public class GraphView extends View {
         float lowerTriangleBound = belowIndent / 10;
 
 
-        if (stripeId != -1) {
+        if (stripeId != -1 && curTime / segmentDuration >= stripeId) {
             lowerTrianglePoints[0].set((int) (leftStripe + stripeId * stripeWidth + stripeWidth / 2),
                     (int) (labelsUnderY[stripeId] + lowerTrianglePadding));
             lowerTrianglePoints[1].set((int) (leftStripe + stripeId * stripeWidth + 3 * stripeWidth / 4),
@@ -344,6 +353,7 @@ public class GraphView extends View {
         } else {
             drawBackground(canvas);
 
+            curTime = System.currentTimeMillis() - startTime;
             drawGraphLines(canvas);
         }
     }
@@ -404,7 +414,7 @@ public class GraphView extends View {
     }
 
     private void drawHighlightedStripe(Canvas canvas) {
-        if (stripeId != -1) {
+        if (stripeId != -1 && curTime / segmentDuration >= stripeId) {
             float xPos1 = leftStripe + stripeWidth * (stripeId - bigCircleRatio);
             float xPos2 = leftStripe + stripeWidth * (stripeId + 1 + bigCircleRatio);
 
@@ -428,10 +438,10 @@ public class GraphView extends View {
 
     private void drawTextLabelsUnderStripes(Canvas canvas) {
         for (int i = 0; i < months.length; ++i) {
-            if (i != stripeId)
-                canvas.drawText(months[i], labelsUnderX[i], labelsUnderY[i], mTextPaint);
-            else
+            if (i == stripeId && curTime / segmentDuration >= stripeId)
                 canvas.drawText(months[i], labelsUnderX[i], labelsUnderY[i], mGoalTextPaint);
+            else
+                canvas.drawText(months[i], labelsUnderX[i], labelsUnderY[i], mTextPaint);
         }
     }
 
@@ -491,9 +501,21 @@ public class GraphView extends View {
 
     }
 
-    private void drawGraphLines(Canvas canvas) {
+    private void drawGraphLines(final Canvas canvas) {
+        drawAnimatedLines(canvas);
+
+        drawAnimatedCircles(canvas);
+        drawHighligthedCirclesAndTriangles(canvas);
+
+        if (curTime < animationDuration)
+            postInvalidateDelayed(1000 / framesPerSecond);
+
+    }
+
+    private void drawAnimatedLines(Canvas canvas) {
         mGraphPath.reset();
         mGradPath.reset();
+
 
         // draw lines
         for (int i = 0; i < months.length; ++i) {
@@ -501,30 +523,56 @@ public class GraphView extends View {
                 mGraphPath.moveTo(circleCentresX[i], valuesRealHeight[i]);
                 mGradPath.moveTo(circleCentresX[i], valuesRealHeight[i]);
             } else {
-                mGraphPath.lineTo(circleCentresX[i], valuesRealHeight[i]);
-                mGradPath.lineTo(circleCentresX[i], valuesRealHeight[i]);
+                if (curTime / segmentDuration > i - 1) {
+                    mGraphPath.lineTo(circleCentresX[i], valuesRealHeight[i]);
+                    mGradPath.lineTo(circleCentresX[i], valuesRealHeight[i]);
+
+                    if (i == months.length - 1)
+                        mGradPath.lineTo(circleCentresX[i], canvas.getHeight() - belowIndent);
+                } else if (curTime / segmentDuration == i - 1) {
+                    float curPosX = circleCentresX[i - 1] + (circleCentresX[i] - circleCentresX[i - 1])
+                            * ((float) (curTime % segmentDuration) / segmentDuration);
+                    float curPosY = valuesRealHeight[i - 1] + (valuesRealHeight[i] - valuesRealHeight[i - 1])
+                            * ((float) (curTime % segmentDuration) / segmentDuration);
+
+                    mGraphPath.lineTo(curPosX, curPosY);
+                    mGradPath.lineTo(curPosX, curPosY);
+                    mGradPath.lineTo(curPosX, canvas.getHeight() - belowIndent);
+                }
             }
+
         }
 
-        mGradPath.lineTo(circleCentresX[months.length - 1], canvas.getHeight() - belowIndent);
         mGradPath.lineTo(circleCentresX[0], canvas.getHeight() - belowIndent);
         mGradPath.close();
 
         canvas.drawPath(mGradPath, mGradPaint);
         canvas.drawPath(mGraphPath, mGraphPaint);
+    }
 
+    private void drawAnimatedCircles(Canvas canvas) {
+        curTime -= segmentDuration;
         for (int i = 0; i < months.length; ++i) {
-            canvas.drawCircle(circleCentresX[i], valuesRealHeight[i],
-                    bigCircleRatio * canvas.getHeight(), mBigCirclePaint);
-            canvas.drawCircle(circleCentresX[i], valuesRealHeight[i],
-                    smallCircleRatio * canvas.getHeight(), mSmallCirclePaint);
+            if (curTime / segmentDuration > i - 1) {
+                canvas.drawCircle(circleCentresX[i], valuesRealHeight[i],
+                        bigCircleRatio * canvas.getHeight(), mBigCirclePaint);
+                canvas.drawCircle(circleCentresX[i], valuesRealHeight[i],
+                        smallCircleRatio * canvas.getHeight(), mSmallCirclePaint);
+            }
+            if (curTime / segmentDuration == i - 1) {
+                float value = ((float) (curTime % segmentDuration)) / segmentDuration
+                        * smallCircleRatio * canvas.getHeight();
+                canvas.drawCircle(circleCentresX[i], valuesRealHeight[i],
+                        2 * value, mBigCirclePaint);
+                canvas.drawCircle(circleCentresX[i], valuesRealHeight[i],
+                        value, mSmallCirclePaint);
+                requestLayout();
+            }
         }
-
-        drawHighligthedCirclesAndTriangles(canvas);
     }
 
     private void drawHighligthedCirclesAndTriangles(Canvas canvas) {
-        if (stripeId != -1) {
+        if (stripeId != -1 && curTime / segmentDuration >= stripeId) {
             // Big circles
             canvas.drawCircle(circleCentresX[stripeId], valuesRealHeight[stripeId],
                     2 * bigCircleRatio * canvas.getHeight(), mBigCirclePaint);
