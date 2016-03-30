@@ -95,7 +95,8 @@ public class GraphView extends View {
     // Layout arrays
     float[] valuesRealHeight;
     float[] circleCentresX;
-    float[] animDur;
+    long [] timeAnim;
+
     float[] labelsUnderX;
     float[] labelsUnderY;
     float[] monthsMeasured;
@@ -124,6 +125,9 @@ public class GraphView extends View {
     // Event handling
     private static final int MAX_CLICK_DURATION = 200;
     private long startClickTime = 0;
+
+    // Parent
+    HorizontalScrollView hsv;
 
 
     public GraphView(Context context, AttributeSet attrs) {
@@ -203,7 +207,6 @@ public class GraphView extends View {
         mGraphPaint.setAntiAlias(true);
 
         mGradPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mGradPaint.setStrokeWidth(0);
 
 
         mGoalPaint = new Paint();
@@ -292,8 +295,11 @@ public class GraphView extends View {
             graphStrokeWidth = h / 100;
             mGoalPaint.setStrokeWidth(graphStrokeWidth / 2);
             mLinePaint.setStrokeWidth(graphStrokeWidth / 4);
+
             mGraphPaint.setStrokeWidth(graphStrokeWidth);
-            mGraphPaint.setPathEffect(new CornerPathEffect(stripeWidth / 10));
+//            mGraphPaint.setPathEffect(new CornerPathEffect(stripeWidth / 10));
+            mGradPaint.setStrokeWidth(graphStrokeWidth);
+
             mGradPaint.setShader(new LinearGradient(0, 0, 0, getHeight(),
                     Color.argb(160, Color.red(mGraphLineColor), Color.green(mGraphLineColor), Color.blue(mGraphLineColor)),
                     Color.argb(8, Color.red(mGraphLineColor), Color.green(mGraphLineColor), Color.blue(mGraphLineColor)), Shader.TileMode.MIRROR));
@@ -343,7 +349,7 @@ public class GraphView extends View {
         originalX = new float[months.length];
         originalY = new float[months.length];
 
-        long curAnimDur = animationDuration;
+        long curAnimDur = 0;
         for (int i = 0; i < values.length; ++i) {
             float valueX = leftStripe + stripeWidth * ((float) i + 0.5f);
             float valueY = convertValuetoHeight(mGoal, values[i], values, h);
@@ -352,10 +358,9 @@ public class GraphView extends View {
                 tempAnim.add(curAnimDur);
                 circleCentresXCount.add(valueX);
                 valuesRealHeightCount.add(valueY);
-                curAnimDur = animationDuration;
             }
-            else
-                curAnimDur += animationDuration;
+
+            curAnimDur += segmentDuration;
 
             originalX[i] = valueX;
             originalY[i] = valueY;
@@ -363,10 +368,12 @@ public class GraphView extends View {
 
         valuesRealHeight = new float[valuesRealHeightCount.size()];
         circleCentresX = new float[valuesRealHeightCount.size()];
+        timeAnim = new long[valuesRealHeightCount.size()];
 
         for (int i = 0; i < valuesRealHeight.length; ++i) {
             valuesRealHeight[i] = valuesRealHeightCount.get(i);
             circleCentresX[i] = circleCentresXCount.get(i);
+            timeAnim[i] = tempAnim.get(i);
         }
 
         // Precalc textSizes
@@ -392,8 +399,11 @@ public class GraphView extends View {
         if (months == null || values == null) {
             displayError(canvas);
         } else {
+            hsv = (HorizontalScrollView) getParent();
+
             drawBackground(canvas);
 
+            // Measure animation time
             curTime = System.currentTimeMillis() - startTime;
             drawGraphLines(canvas);
         }
@@ -522,7 +532,7 @@ public class GraphView extends View {
     private void drawHorizontalLinesAndText(Canvas canvas) {
 
         double max = Collections.max(Arrays.asList(values));
-        double min = mFillNa ? countMinFNa(values, max) :Collections.min(Arrays.asList(values));
+        double min = mFillNa ? countMinFNa(values, max) : Collections.min(Arrays.asList(values));
 
         graphStep = (int) (max - min) / preferredNumLines;
         double firstLineHeight = (int) (min + min % graphStep);
@@ -563,22 +573,26 @@ public class GraphView extends View {
                 mGraphPath.moveTo(circleCentresX[i], valuesRealHeight[i]);
                 mGradPath.moveTo(circleCentresX[i], valuesRealHeight[i]);
             } else {
-                if (curTime / segmentDuration > i - 1) {
+                if (curTime > timeAnim[i]) {
                     mGraphPath.lineTo(circleCentresX[i], valuesRealHeight[i]);
                     mGradPath.lineTo(circleCentresX[i], valuesRealHeight[i]);
 
                     if (i == circleCentresX.length - 1)
                         mGradPath.lineTo(circleCentresX[i], canvas.getHeight() - belowIndent);
-                } else if (curTime / segmentDuration == i - 1) {
+                } else if (curTime > timeAnim[i - 1]) {
+                    long localSegDur = timeAnim[i] - timeAnim[i - 1];
                     float curPosX = circleCentresX[i - 1] + (circleCentresX[i] - circleCentresX[i - 1])
-                            * ((float) (curTime % segmentDuration) / segmentDuration);
+                            * ((float) (curTime - timeAnim[i - 1]) / localSegDur);
                     float curPosY = valuesRealHeight[i - 1] + (valuesRealHeight[i] - valuesRealHeight[i - 1])
-                            * ((float) (curTime % segmentDuration) / segmentDuration);
+                            * ((float) (curTime - timeAnim[i - 1]) / localSegDur);
 
-                    mGraphPath.lineTo(curPosX, curPosY);
                     mGradPath.lineTo(curPosX, curPosY);
                     mGradPath.lineTo(curPosX, canvas.getHeight() - belowIndent);
-                    ((HorizontalScrollView) getParent()).scrollTo((int) (curPosX - ((HorizontalScrollView) getParent()).getWidth() / 2), 0);
+                    mGraphPath.lineTo(curPosX, curPosY);
+
+
+                    hsv.scrollTo((int) (curPosX - hsv.getWidth() / 2), 0);
+                    break;
                 }
             }
 
