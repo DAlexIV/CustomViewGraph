@@ -26,12 +26,12 @@ public class ArrowedHorizontalScrollView extends HorizontalScrollView {
         mArrowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mArrowPaint.setColor(Color.BLACK);
         mArrowPaint.setStyle(Paint.Style.STROKE);
-
+        this.setWillNotDraw(false);
     }
 
     @Override
-    public void onDrawForeground(Canvas canvas) {
-        super.onDrawForeground(canvas);
+    public void draw(Canvas canvas) {
+        super.draw(canvas);
         mArrowPaint.setStrokeWidth(canvas.getHeight() * lineRatio);
         if (getScrollX() != 0)
             drawLeftArrow(canvas, getScrollX());

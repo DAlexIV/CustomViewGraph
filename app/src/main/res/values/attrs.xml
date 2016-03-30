@@ -7,5 +7,6 @@
         <attr name="graph_line_color" format="integer"/>
         <attr name="text_color" format="integer"/>
         <attr name="real_width" format="integer"/>
+        <attr name="fill_na" format="boolean"/>
     </declare-styleable>
 </resources>

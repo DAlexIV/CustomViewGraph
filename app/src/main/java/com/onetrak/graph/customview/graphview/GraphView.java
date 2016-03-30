@@ -16,6 +16,7 @@ import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.HorizontalScrollView;
 
 import com.onetrak.graph.customview.R;
 
@@ -42,6 +43,7 @@ public class GraphView extends View {
     int mGraphLineColor;
     int mTextColor;
     int mDesiredWidth;
+    boolean mFillNa;
     double mGoal;
 
     // Rects
@@ -64,6 +66,7 @@ public class GraphView extends View {
     Paint mGradPaint;
     Paint mHighlightStripePaint;
     Paint mHighlightPathPaint;
+    Paint mArrowPaint;
 
     // Paths
     Path mGraphPath;
@@ -72,6 +75,8 @@ public class GraphView extends View {
     Path mUpperTrianglePath;
     Path mLowerTrianglePath;
     Path mHighlightPath;
+    Path mLeftArrowPath;
+
     float[] intervals;
 
     // Layout sizes
@@ -90,9 +95,12 @@ public class GraphView extends View {
     // Layout arrays
     float[] valuesRealHeight;
     float[] circleCentresX;
+    float[] animDur;
     float[] labelsUnderX;
     float[] labelsUnderY;
     float[] monthsMeasured;
+    float[] originalX;
+    float[] originalY;
 
     // Constants
     public static float leftStripe;
@@ -112,6 +120,7 @@ public class GraphView extends View {
     public static int framesPerSecond = 60;
     public static long segmentDuration = 250;
 
+
     // Event handling
     private static final int MAX_CLICK_DURATION = 200;
     private long startClickTime = 0;
@@ -124,12 +133,13 @@ public class GraphView extends View {
                 R.styleable.GraphView,
                 0, 0
         );
-        mBackColor1 = a.getInteger(R.styleable.GraphView_back_color1, 0);
-        mBackColor2 = a.getInteger(R.styleable.GraphView_back_color2, 0);
-        mBackLineColor = a.getInteger(R.styleable.GraphView_back_line_color, 0);
-        mGraphLineColor = a.getInteger(R.styleable.GraphView_graph_line_color, 0);
-        mTextColor = a.getInteger(R.styleable.GraphView_text_color, 0);
+        mBackColor1 = a.getInteger(R.styleable.GraphView_back_color1, Color.parseColor("#f0f1f2"));
+        mBackColor2 = a.getInteger(R.styleable.GraphView_back_color2, Color.parseColor("#e7e9eb"));
+        mBackLineColor = a.getInteger(R.styleable.GraphView_back_line_color, Color.parseColor("#cdd1d6"));
+        mGraphLineColor = a.getInteger(R.styleable.GraphView_graph_line_color, Color.parseColor("#a58143"));
+        mTextColor = a.getInteger(R.styleable.GraphView_text_color, Color.parseColor("#2a2a2a"));
         mDesiredWidth = a.getInteger(R.styleable.GraphView_real_width, 0);
+        mFillNa = a.getBoolean(R.styleable.GraphView_fill_na, false);
 
 //        if (!(getParent() instanceof HorizontalScrollView))
 //            throw new IllegalArgumentException("You should wrap this class into HorizontalScrollView");
@@ -149,6 +159,8 @@ public class GraphView extends View {
         mGoalPath = new Path();
         mGradPath = new Path();
         mHighlightPath = new Path();
+        mLeftArrowPath = new Path();
+
 
         mUpperTrianglePath = new Path();
         mUpperTrianglePath.setFillType(Path.FillType.EVEN_ODD);
@@ -223,6 +235,10 @@ public class GraphView extends View {
         mHighlightPathPaint.setColor(mBackLineColor);
         mHighlightPathPaint.setStyle(Paint.Style.STROKE);
         mHighlightPathPaint.setShadowLayer(10f, 0.0f, 0.0f, Color.BLACK);
+
+        mArrowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mArrowPaint.setColor(Color.BLACK);
+        mArrowPaint.setStyle(Paint.Style.STROKE);
     }
 
 
@@ -319,12 +335,38 @@ public class GraphView extends View {
 
     private void precalculateLayoutArrays(int h) {
         // Precalculating data for circles
-        valuesRealHeight = new float[values.length];
-        circleCentresX = new float[values.length];
+        // TODO refactoring needed
+        List<Float> valuesRealHeightCount = new ArrayList<>();
+        List<Float> circleCentresXCount = new ArrayList<>();
+        List<Long> tempAnim = new ArrayList<>();
 
+        originalX = new float[months.length];
+        originalY = new float[months.length];
+
+        long curAnimDur = animationDuration;
         for (int i = 0; i < values.length; ++i) {
-            circleCentresX[i] = leftStripe + stripeWidth * ((float) i + 0.5f);
-            valuesRealHeight[i] = convertValuetoHeight(mGoal, values[i], values, h);
+            float valueX = leftStripe + stripeWidth * ((float) i + 0.5f);
+            float valueY = convertValuetoHeight(mGoal, values[i], values, h);
+
+            if (values[i] != 0) {
+                tempAnim.add(curAnimDur);
+                circleCentresXCount.add(valueX);
+                valuesRealHeightCount.add(valueY);
+                curAnimDur = animationDuration;
+            }
+            else
+                curAnimDur += animationDuration;
+
+            originalX[i] = valueX;
+            originalY[i] = valueY;
+        }
+
+        valuesRealHeight = new float[valuesRealHeightCount.size()];
+        circleCentresX = new float[valuesRealHeightCount.size()];
+
+        for (int i = 0; i < valuesRealHeight.length; ++i) {
+            valuesRealHeight[i] = valuesRealHeightCount.get(i);
+            circleCentresX[i] = circleCentresXCount.get(i);
         }
 
         // Precalc textSizes
@@ -363,10 +405,6 @@ public class GraphView extends View {
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 startClickTime = System.currentTimeMillis();
-                return true;
-            case MotionEvent.ACTION_SCROLL:
-                invalidate();
-                requestLayout();
                 return true;
             case MotionEvent.ACTION_UP:
                 long clickDuration = System.currentTimeMillis() - startClickTime;
@@ -482,8 +520,9 @@ public class GraphView extends View {
     }
 
     private void drawHorizontalLinesAndText(Canvas canvas) {
-        double min = Collections.min(Arrays.asList(values));
+
         double max = Collections.max(Arrays.asList(values));
+        double min = mFillNa ? countMinFNa(values, max) :Collections.min(Arrays.asList(values));
 
         graphStep = (int) (max - min) / preferredNumLines;
         double firstLineHeight = (int) (min + min % graphStep);
@@ -519,7 +558,7 @@ public class GraphView extends View {
 
 
         // draw lines
-        for (int i = 0; i < months.length; ++i) {
+        for (int i = 0; i < circleCentresX.length; ++i) {
             if (i == 0) {
                 mGraphPath.moveTo(circleCentresX[i], valuesRealHeight[i]);
                 mGradPath.moveTo(circleCentresX[i], valuesRealHeight[i]);
@@ -528,7 +567,7 @@ public class GraphView extends View {
                     mGraphPath.lineTo(circleCentresX[i], valuesRealHeight[i]);
                     mGradPath.lineTo(circleCentresX[i], valuesRealHeight[i]);
 
-                    if (i == months.length - 1)
+                    if (i == circleCentresX.length - 1)
                         mGradPath.lineTo(circleCentresX[i], canvas.getHeight() - belowIndent);
                 } else if (curTime / segmentDuration == i - 1) {
                     float curPosX = circleCentresX[i - 1] + (circleCentresX[i] - circleCentresX[i - 1])
@@ -539,6 +578,7 @@ public class GraphView extends View {
                     mGraphPath.lineTo(curPosX, curPosY);
                     mGradPath.lineTo(curPosX, curPosY);
                     mGradPath.lineTo(curPosX, canvas.getHeight() - belowIndent);
+                    ((HorizontalScrollView) getParent()).scrollTo((int) (curPosX - ((HorizontalScrollView) getParent()).getWidth() / 2), 0);
                 }
             }
 
@@ -553,7 +593,8 @@ public class GraphView extends View {
 
     private void drawAnimatedCircles(Canvas canvas) {
         curTime -= segmentDuration;
-        for (int i = 0; i < months.length; ++i) {
+        // TODO do not draw is value is null
+        for (int i = 0; i < circleCentresX.length; ++i) {
             if (curTime / segmentDuration > i - 1) {
                 canvas.drawCircle(circleCentresX[i], valuesRealHeight[i],
                         bigCircleRatio * canvas.getHeight(), mBigCirclePaint);
@@ -575,9 +616,9 @@ public class GraphView extends View {
     private void drawHighligthedCirclesAndTriangles(Canvas canvas) {
         if (stripeId != -1 && curTime / segmentDuration >= stripeId) {
             // Big circles
-            canvas.drawCircle(circleCentresX[stripeId], valuesRealHeight[stripeId],
+            canvas.drawCircle(originalX[stripeId], originalY[stripeId],
                     2 * bigCircleRatio * canvas.getHeight(), mBigCirclePaint);
-            canvas.drawCircle(circleCentresX[stripeId], valuesRealHeight[stripeId],
+            canvas.drawCircle(originalX[stripeId], originalY[stripeId],
                     2 * smallCircleRatio * canvas.getHeight(), mSmallCirclePaint);
 
             buildAndDrawTriangle(canvas, lowerTrianglePoints, mLowerTrianglePath, mTrianglePaint);
@@ -615,12 +656,34 @@ public class GraphView extends View {
         if (mGoal != 0)
             valuesAndGoal.add(mGoal);
 
-        double min = Collections.min(valuesAndGoal);
+
         double max = Collections.max(valuesAndGoal);
+        double min = max;
+        if (mFillNa) {
+            min = countMinFNa(valuesAndGoal, max);
+        } else {
+            min = Collections.min(valuesAndGoal);
+        }
 
         float indentValue = (headerRatio + borderRatio) * canvasHeight;
         float scaledValue = (float) ((max - value) / (max - min) * graphRatio * canvasHeight);
         return indentValue + scaledValue;
+    }
+
+    private double countMinFNa(Double[] valuesAndGoal, double max) {
+        double min = max;
+        for (int i = 0; i < valuesAndGoal.length; ++i)
+            if (valuesAndGoal[i] != 0 && valuesAndGoal[i] < min)
+                min = valuesAndGoal[i];
+        return min;
+    }
+
+    private double countMinFNa(List<Double> valuesAndGoal, double max) {
+        double min = max;
+        for (int i = 0; i < valuesAndGoal.size(); ++i)
+            if (valuesAndGoal.get(i) != 0 && valuesAndGoal.get(i) < min)
+                min = valuesAndGoal.get(i);
+        return min;
     }
 
     public int getColor() {
@@ -744,6 +807,20 @@ public class GraphView extends View {
         requestLayout();
     }
 
+
+    public boolean ismFillNa() {
+        return mFillNa;
+    }
+
+    public void setmFillNa(boolean mFillNa) {
+        this.mFillNa = mFillNa;
+
+        init();
+        invalidate();
+        requestLayout();
+    }
+
+
     @Override
     protected int getSuggestedMinimumWidth() {
         return 320;
@@ -753,4 +830,5 @@ public class GraphView extends View {
     protected int getSuggestedMinimumHeight() {
         return 240;
     }
+
 }
