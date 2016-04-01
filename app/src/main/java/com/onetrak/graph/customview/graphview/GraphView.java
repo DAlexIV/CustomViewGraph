@@ -12,6 +12,7 @@ import android.graphics.Path;
 import android.graphics.Point;
 import android.graphics.RectF;
 import android.graphics.Shader;
+import android.text.TextPaint;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
@@ -36,7 +37,7 @@ public class GraphView extends View {
 
     // Public data
     String[] months;
-    Double[] values;
+    double[] values;
     int mBackColor1;
     int mBackColor2;
     int mBackLineColor;
@@ -54,11 +55,11 @@ public class GraphView extends View {
     // Paints
     Paint mStripePaint;
     Paint mErrRectPaint;
-    Paint mErrTextPaint;
+    TextPaint mErrTextPaint;
     Paint mLinePaint;
     Paint mGoalPaint;
-    Paint mGoalTextPaint;
-    Paint mTextPaint;
+    TextPaint mGoalTextPaint;
+    TextPaint mTextPaint;
     Paint mGraphPaint;
     Paint mBigCirclePaint;
     Paint mSmallCirclePaint;
@@ -87,6 +88,8 @@ public class GraphView extends View {
     float goalStart;
     float goalEnd;
     int mTextSize;
+    double linesMin;
+    double linesMax;
 
     Point[] lowerTrianglePoints;
     Point[] upperTrianglePoints;
@@ -129,6 +132,10 @@ public class GraphView extends View {
     // Parent
     HorizontalScrollView hsv;
 
+    // Strings from context
+    String localMeasurementSystem;
+    String graphErrorText;
+    String goalLineText;
 
     public GraphView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -154,6 +161,7 @@ public class GraphView extends View {
 
     private void init() {
         initPaints();
+        initStrings();
 
         mErrRectF = new RectF();
         mStripeRectF = new RectF();
@@ -182,11 +190,17 @@ public class GraphView extends View {
         startTime = System.currentTimeMillis();
     }
 
+    private void initStrings() {
+        localMeasurementSystem = getContext().getString(R.string.localMeasurementSystem);
+        graphErrorText = getContext().getString(R.string.graphError);
+        goalLineText = getContext().getString(R.string.goalLineText);
+    }
+
     private void initPaints() {
         mErrRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mErrRectPaint.setColor(Color.RED);
 
-        mErrTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mErrTextPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
         mErrTextPaint.setTextSize(30);
         mErrTextPaint.setColor(Color.BLACK);
 
@@ -195,7 +209,7 @@ public class GraphView extends View {
         mLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mLinePaint.setColor(mBackLineColor);
 
-        mTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mTextPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
         mTextPaint.setColor(mTextColor);
 
         mGraphPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -216,7 +230,7 @@ public class GraphView extends View {
         intervals = new float[]{stripLength, stripLength};
         mGoalPaint.setPathEffect(new DashPathEffect(intervals, 0));
 
-        mGoalTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mGoalTextPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
         mGoalTextPaint.setColor(mGraphLineColor);
 
         mBigCirclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -301,8 +315,10 @@ public class GraphView extends View {
             mGradPaint.setStrokeWidth(graphStrokeWidth);
 
             mGradPaint.setShader(new LinearGradient(0, 0, 0, getHeight(),
-                    Color.argb(160, Color.red(mGraphLineColor), Color.green(mGraphLineColor), Color.blue(mGraphLineColor)),
-                    Color.argb(8, Color.red(mGraphLineColor), Color.green(mGraphLineColor), Color.blue(mGraphLineColor)), Shader.TileMode.MIRROR));
+                    Color.argb(160, Color.red(mGraphLineColor), Color.green(mGraphLineColor),
+                            Color.blue(mGraphLineColor)),
+                    Color.argb(8, Color.red(mGraphLineColor), Color.green(mGraphLineColor),
+                            Color.blue(mGraphLineColor)), Shader.TileMode.MIRROR));
 
             // Animation
             animationDuration = segmentDuration * (months.length - 1);
@@ -342,9 +358,11 @@ public class GraphView extends View {
     private void precalculateLayoutArrays(int h) {
         // Precalculating data for circles
         // TODO refactoring needed
-        List<Float> valuesRealHeightCount = new ArrayList<>();
-        List<Float> circleCentresXCount = new ArrayList<>();
-        List<Long> tempAnim = new ArrayList<>();
+        float[] valuesRealHeightCount = new float[months.length];
+        float[] circleCentresXCount  = new float[months.length];
+        long[] tempAnim = new long[months.length];
+
+        int last = 0;
 
         originalX = new float[months.length];
         originalY = new float[months.length];
@@ -352,12 +370,13 @@ public class GraphView extends View {
         long curAnimDur = 0;
         for (int i = 0; i < values.length; ++i) {
             float valueX = leftStripe + stripeWidth * ((float) i + 0.5f);
-            float valueY = convertValuetoHeight(mGoal, values[i], values, h);
+            float valueY = convertValuetoHeight(mGoal, values[i], h);
 
             if (values[i] != 0) {
-                tempAnim.add(curAnimDur);
-                circleCentresXCount.add(valueX);
-                valuesRealHeightCount.add(valueY);
+                tempAnim[last] = curAnimDur;
+                circleCentresXCount[last] = valueX;
+                valuesRealHeightCount[last] = valueY;
+                ++last;
             }
 
             curAnimDur += segmentDuration;
@@ -366,14 +385,14 @@ public class GraphView extends View {
             originalY[i] = valueY;
         }
 
-        valuesRealHeight = new float[valuesRealHeightCount.size()];
-        circleCentresX = new float[valuesRealHeightCount.size()];
-        timeAnim = new long[valuesRealHeightCount.size()];
+        valuesRealHeight = new float[last];
+        circleCentresX = new float[last];
+        timeAnim = new long[last];
 
-        for (int i = 0; i < valuesRealHeight.length; ++i) {
-            valuesRealHeight[i] = valuesRealHeightCount.get(i);
-            circleCentresX[i] = circleCentresXCount.get(i);
-            timeAnim[i] = tempAnim.get(i);
+        for (int i = 0; i < last; ++i) {
+            valuesRealHeight[i] = valuesRealHeightCount[i];
+            circleCentresX[i] = circleCentresXCount[i];
+            timeAnim[i] = tempAnim[i];
         }
 
         // Precalc textSizes
@@ -390,6 +409,19 @@ public class GraphView extends View {
                     + 0.5f * (stripeWidth - mTextPaint.measureText(months[i]));
             labelsUnderY[i] = h - belowIndent + mTextSize;
         }
+
+        // Precalculate data for lines
+        double localMax = 0;
+        double localMin = 0;
+        for (int i = 0; i < values.length; ++i) {
+            if (values[i] > localMax)
+                localMax = values[i];
+            if (localMin < values[i])
+                localMin = values[i];
+        }
+
+        linesMax = localMax;
+        linesMin = mFillNa ? countMinFNa(values, linesMax) : localMin;
     }
 
 
@@ -406,6 +438,7 @@ public class GraphView extends View {
             // Measure animation time
             curTime = System.currentTimeMillis() - startTime;
             drawGraphLines(canvas);
+            invalidate();
         }
     }
 
@@ -510,7 +543,7 @@ public class GraphView extends View {
 
     private void drawGoalLineAndText(Canvas canvas) {
         if (mGoal != 0) {
-            float value = convertValuetoHeight(mGoal, mGoal, values, canvas.getHeight());
+            float value = convertValuetoHeight(mGoal, mGoal, canvas.getHeight());
 
             // Draw line
             mGoalPath.reset();
@@ -520,7 +553,7 @@ public class GraphView extends View {
 
             // Draw text
             mGoalTextPaint.setTextSize(mTextSize);
-            canvas.drawText(getContext().getString(R.string.goalLineText),
+            canvas.drawText(goalLineText,
                     mTextSize / 2, value - mTextSize / 2, mGoalTextPaint);
 
             // Count constraints
@@ -530,21 +563,17 @@ public class GraphView extends View {
     }
 
     private void drawHorizontalLinesAndText(Canvas canvas) {
-
-        double max = Collections.max(Arrays.asList(values));
-        double min = mFillNa ? countMinFNa(values, max) : Collections.min(Arrays.asList(values));
-
-        graphStep = (int) (max - min) / preferredNumLines;
-        double firstLineHeight = (int) (min + min % graphStep);
+        graphStep = (int) (linesMax - linesMin) / preferredNumLines;
+        double firstLineHeight = (int) (linesMin + linesMin % graphStep);
 
 
-        for (double curHeight = firstLineHeight; curHeight < max; curHeight += graphStep) {
-            float value = convertValuetoHeight(mGoal, curHeight, values, canvas.getHeight());
+        for (double curHeight = firstLineHeight; curHeight < linesMax; curHeight += graphStep) {
+            float value = convertValuetoHeight(mGoal, curHeight, canvas.getHeight());
 
             if (value < goalStart || value > goalEnd + 5 * mTextSize / 4) {
                 canvas.drawLine(0, value, canvas.getWidth(), value, mLinePaint);
                 canvas.drawText(Integer.toString((int) curHeight) + " "
-                                + getContext().getString(R.string.localMeasurementSystem), mTextSize / 4,
+                                + localMeasurementSystem, mTextSize / 4,
                         value - mTextSize / 4, mTextPaint);
             }
         }
@@ -553,7 +582,6 @@ public class GraphView extends View {
 
     private void drawGraphLines(final Canvas canvas) {
         drawAnimatedLines(canvas);
-
         drawAnimatedCircles(canvas);
         drawHighligthedCirclesAndTriangles(canvas);
 
@@ -622,7 +650,6 @@ public class GraphView extends View {
                         2 * value, mBigCirclePaint);
                 canvas.drawCircle(circleCentresX[i], valuesRealHeight[i],
                         value, mSmallCirclePaint);
-                requestLayout();
             }
         }
     }
@@ -654,52 +681,29 @@ public class GraphView extends View {
 
 
     private void displayError(Canvas canvas) {
-        float errWidth = mErrTextPaint.measureText(getContext().getString(R.string.graphError));
+        float errWidth = mErrTextPaint.measureText(graphErrorText);
 
         int xPos = (int) (canvas.getWidth() - errWidth) / 2;
         int yPos = (int) ((canvas.getHeight() / 2)
                 - ((mErrTextPaint.descent() + mErrTextPaint.ascent()) / 2));
 
         canvas.drawRect(mErrRectF, mErrRectPaint);
-        canvas.drawText(getContext().getString(R.string.graphError), xPos, yPos, mErrTextPaint);
+        canvas.drawText(graphErrorText, xPos, yPos, mErrTextPaint);
     }
 
-    private float convertValuetoHeight(double mGoal, Double value, Double[] array, float canvasHeight) {
-        List<Double> valuesAndGoal = new ArrayList<>(Arrays.asList(array));
-
-        if (mGoal != 0)
-            valuesAndGoal.add(mGoal);
-
-
-        double max = Collections.max(valuesAndGoal);
-        double min = max;
-        if (mFillNa) {
-            min = countMinFNa(valuesAndGoal, max);
-        } else {
-            min = Collections.min(valuesAndGoal);
-        }
-
+    private float convertValuetoHeight(double mGoal, Double value, float canvasHeight) {
         float indentValue = (headerRatio + borderRatio) * canvasHeight;
-        float scaledValue = (float) ((max - value) / (max - min) * graphRatio * canvasHeight);
+        float scaledValue = (float) ((linesMax - value) / (linesMax - linesMin) * graphRatio * canvasHeight);
         return indentValue + scaledValue;
     }
 
-    private double countMinFNa(Double[] valuesAndGoal, double max) {
+    private double countMinFNa(double[] valuesAndGoal, double max) {
         double min = max;
         for (int i = 0; i < valuesAndGoal.length; ++i)
             if (valuesAndGoal[i] != 0 && valuesAndGoal[i] < min)
                 min = valuesAndGoal[i];
         return min;
     }
-
-    private double countMinFNa(List<Double> valuesAndGoal, double max) {
-        double min = max;
-        for (int i = 0; i < valuesAndGoal.size(); ++i)
-            if (valuesAndGoal.get(i) != 0 && valuesAndGoal.get(i) < min)
-                min = valuesAndGoal.get(i);
-        return min;
-    }
-
     public int getColor() {
         return mGraphLineColor;
     }
@@ -724,11 +728,11 @@ public class GraphView extends View {
         requestLayout();
     }
 
-    public Double[] getValues() {
+    public double[] getValues() {
         return values;
     }
 
-    public void setValues(Double[] values) {
+    public void setValues(double[] values) {
         this.values = values;
 
         init();
