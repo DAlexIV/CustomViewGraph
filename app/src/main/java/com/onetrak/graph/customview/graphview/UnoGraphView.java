@@ -4,7 +4,6 @@ import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.CornerPathEffect;
 import android.graphics.DashPathEffect;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
@@ -17,51 +16,29 @@ import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.HorizontalScrollView;
 
 import com.onetrak.graph.customview.R;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * Created by aleksey.ivanov on 21.03.2016.
  */
-public class GraphView extends View {
+public class UnoGraphView extends BaseGraphView {
     // Animation
     long startTime;
     long animationDuration;
     long curTime;
 
     // Public data
-    String[] months;
     double[] values;
-    int mBackColor1;
-    int mBackColor2;
-    int mBackLineColor;
     int mGraphLineColor;
-    int mTextColor;
-    int mDesiredWidth;
-    boolean mFillNa;
     double mGoal;
 
     // Rects
-    RectF mErrRectF;
-    RectF mStripeRectF;
     RectF mHighRectF;
 
     // Paints
-    Paint mStripePaint;
-    Paint mErrRectPaint;
-    TextPaint mErrTextPaint;
-    Paint mLinePaint;
     Paint mGoalPaint;
     TextPaint mGoalTextPaint;
-    TextPaint mTextPaint;
     Paint mGraphPaint;
     Paint mBigCirclePaint;
     Paint mSmallCirclePaint;
@@ -78,18 +55,13 @@ public class GraphView extends View {
     Path mUpperTrianglePath;
     Path mLowerTrianglePath;
     Path mHighlightPath;
-    Path mLeftArrowPath;
 
     float[] intervals;
 
     // Layout sizes
-    float stripeWidth;
-    float topIndent;
-    float belowIndent;
-    float graphStrokeWidth;
+
     float goalStart;
     float goalEnd;
-    int mTextSize;
     double linesMin;
     double linesMax;
     double firstLineHeight;
@@ -103,30 +75,20 @@ public class GraphView extends View {
     float[] circleCentresX;
     long[] timeAnim;
 
-    float[] labelsUnderX;
-    float[] labelsUnderY;
-    float[] monthsMeasured;
+
     float[] originalX;
     float[] originalY;
     float[] horizontalLinesH;
-    StaticLayout[] textUnderStripes;
     StaticLayout[] weightsTextLayout;
     StaticLayout goalUnderStripes;
 
     // Constants
-    public static float leftStripe;
     public static final float viewRatio = (float) 9 / 16;
-    public static final float headerRatio = 0.05f;
-    public static final float footerRatio = 0.1f;
-    public static final int minStripeDp = 50;
-    public static final float textRatio = 0.62f;
-    public static final float borderRatio = 0.1f;
+
     public static final float bigCircleRatio = 0.025f;
     public static final float smallCircleRatio = 0.0125f;
-    public static final double graphRatio = (float) 1 - headerRatio - footerRatio - 2 * borderRatio;
     public static final float stripLength = 5f;
     public static final int preferredNumLines = 5;
-    public final String testText = "70 " + getContext().getString(R.string.localMeasurementSystem);
     public static int graphStep = 10;
     public static int framesPerSecond = 60;
     public static long segmentDuration = 250;
@@ -141,45 +103,34 @@ public class GraphView extends View {
 
     // Strings from context
     String localMeasurementSystem;
-    String graphErrorText;
     String goalLineText;
     String[] weightsText;
 
-    public GraphView(Context context, AttributeSet attrs) {
+    public UnoGraphView(Context context, AttributeSet attrs) {
         super(context, attrs);
         TypedArray a = context.getTheme().obtainStyledAttributes(
                 attrs,
-                R.styleable.GraphView,
+                R.styleable.UnoGraphView,
                 0, 0
         );
-        mBackColor1 = a.getInteger(R.styleable.GraphView_back_color1, Color.parseColor("#f0f1f2"));
-        mBackColor2 = a.getInteger(R.styleable.GraphView_back_color2, Color.parseColor("#e7e9eb"));
-        mBackLineColor = a.getInteger(R.styleable.GraphView_back_line_color, Color.parseColor("#cdd1d6"));
-        mGraphLineColor = a.getInteger(R.styleable.GraphView_graph_line_color, Color.parseColor("#a58143"));
-        mTextColor = a.getInteger(R.styleable.GraphView_text_color, Color.parseColor("#2a2a2a"));
-        mDesiredWidth = a.getInteger(R.styleable.GraphView_real_width, 0);
-        mFillNa = a.getBoolean(R.styleable.GraphView_fill_na, false);
+        mGraphLineColor = a.getInteger(R.styleable.UnoGraphView_graph_line_color, Color.parseColor("#a58143"));
 
-//        if (!(getParent() instanceof HorizontalScrollView))
-//            throw new IllegalArgumentException("You should wrap this class into HorizontalScrollView");
-//
         a.recycle();
         init();
     }
-
-    private void init() {
+    @Override
+    protected void init() {
+        super.init();
         initPaints();
         initStrings();
 
-        mErrRectF = new RectF();
-        mStripeRectF = new RectF();
+
         mHighRectF = new RectF();
 
         mGraphPath = new Path();
         mGoalPath = new Path();
         mGradPath = new Path();
         mHighlightPath = new Path();
-        mLeftArrowPath = new Path();
 
 
         mUpperTrianglePath = new Path();
@@ -198,27 +149,15 @@ public class GraphView extends View {
         startTime = System.currentTimeMillis();
     }
 
-    private void initStrings() {
+    @Override
+    protected void initStrings() {
+        super.initStrings();
         localMeasurementSystem = getContext().getString(R.string.localMeasurementSystem);
-        graphErrorText = getContext().getString(R.string.graphError);
         goalLineText = getContext().getString(R.string.goalLineText);
     }
 
     private void initPaints() {
-        mErrRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mErrRectPaint.setColor(Color.RED);
 
-        mErrTextPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-        mErrTextPaint.setTextSize(30);
-        mErrTextPaint.setColor(Color.BLACK);
-
-        mStripePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-
-        mLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mLinePaint.setColor(mBackLineColor);
-
-        mTextPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-        mTextPaint.setColor(mTextColor);
 
         mGraphPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mGraphPaint.setColor(mGraphLineColor);
@@ -269,55 +208,12 @@ public class GraphView extends View {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        // Resolving height
-        int minh = getPaddingBottom() + getPaddingTop() + getSuggestedMinimumHeight();
-        int h = resolveSizeAndState(minh, heightMeasureSpec, 1);
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 
-        // Acquiring width of the scrollView parent
-        ViewGroup parent = ((ViewGroup) getParent().getParent());
+        // Changing width of lines with corrections after measurement
+        if (months != null && values != null) {
 
-        // Setting desired width if it's given
-        // Otherwise filling ScrollView parent
-        int minw = (mDesiredWidth == 0)
-                ? HelperLayoutClass.getScreenWidth(getContext())
-                - parent.getPaddingRight() - parent.getPaddingLeft()
-                : (int) (getPaddingLeft() + getPaddingRight()
-                + HelperLayoutClass.pixelsToDp(getContext(), mDesiredWidth)), w;
-
-        // Resolving width
-        w = resolveSizeAndState(minw, widthMeasureSpec, 1);
-
-        if (months == null || values == null)
-        // If data or months are not provided
-        {
-            mErrRectF.set(0, 0, w, h);
-        } else {
-            // Calculating indents
-            topIndent = (int) (h * headerRatio);
-            belowIndent = (int) (h * footerRatio);
-
-            // Counting stripeWidth and indents
-            stripeWidth = w / (months.length + 1);
-
-
-            // If stripe is too narrow, then
-            // we will increase width of graph to required minimum
-            if (stripeWidth < HelperLayoutClass.dpToPixels(getResources(), minStripeDp)) {
-                stripeWidth = (int) HelperLayoutClass.dpToPixels(getResources(), minStripeDp);
-                w = (int) (stripeWidth * (months.length + 1));
-            }
-
-            // Calculating textSize for labels under stripes months
-            HelperLayoutClass.calculateOKTextSize(mTextPaint, textRatio * stripeWidth, months,
-                    belowIndent / 2);
-            mTextSize = (int) mTextPaint.getTextSize();
-            leftStripe = mTextPaint.measureText(testText) + mTextSize / 2;
-            stripeWidth = (w - leftStripe) / months.length;
-
-            // Changing width of lines with corrections after measurement
-            graphStrokeWidth = h / 100;
             mGoalPaint.setStrokeWidth(graphStrokeWidth / 2);
-            mLinePaint.setStrokeWidth(graphStrokeWidth / 4);
 
             mGraphPaint.setStrokeWidth(graphStrokeWidth);
             mGradPaint.setStrokeWidth(graphStrokeWidth);
@@ -334,8 +230,6 @@ public class GraphView extends View {
             precalculateLayoutArrays(h);
             calculateTriangles(h);
         }
-
-        setMeasuredDimension(w, h);
     }
 
     private void calculateTriangles(int h) {
@@ -403,29 +297,9 @@ public class GraphView extends View {
             timeAnim[i] = tempAnim[i];
         }
 
-        // Precalc textSizes
-        monthsMeasured = new float[values.length];
-        for (int i = 0; i < months.length; ++i) {
-            monthsMeasured[i] = mTextPaint.measureText(months[i]);
-        }
-
-        // Precalculating data for text
-        labelsUnderX = new float[values.length];
-        labelsUnderY = new float[values.length];
-        for (int i = 0; i < months.length; ++i) {
-            labelsUnderX[i] = leftStripe + stripeWidth * i
-                    + 0.5f * (stripeWidth - mTextPaint.measureText(months[i]));
-            labelsUnderY[i] = h - belowIndent;
-        }
 
         findMinAndMax();
 
-        // Calculating static layouts
-        textUnderStripes = new StaticLayout[months.length];
-        for (int i = 0; i < months.length; ++i)
-            textUnderStripes[i] = new StaticLayout(months[i], mTextPaint,
-                    (int) (textRatio * stripeWidth),
-                    Layout.Alignment.ALIGN_NORMAL, 1, 1, true);
 
         if (stripeId != -1) {
             goalUnderStripes = new StaticLayout(months[stripeId], mGoalTextPaint,
@@ -487,12 +361,10 @@ public class GraphView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        if (months == null || values == null) {
-            displayError(canvas);
-        } else {
+        if (months != null && values != null) {
             hsv = (ArrowedHorizontalScrollView) getParent();
 
-            drawBackground(canvas);
+            drawAdditionalBackground(canvas);
 
             // Measure animation time
             curTime = System.currentTimeMillis() - startTime;
@@ -534,29 +406,27 @@ public class GraphView extends View {
         return false;
     }
 
-    // Remove multiplication ?
-    private void drawBackground(Canvas canvas) {
+    // Remove multiplication
+    protected void drawAdditionalBackground(Canvas canvas) {
 
-        mStripeRectF.set(0, topIndent, leftStripe, canvas.getHeight() - belowIndent);
-        mStripePaint.setColor(mBackColor2);
-        canvas.drawRect(mStripeRectF, mStripePaint);
-
-        for (int i = 0; i < months.length; ++i) {
-            mStripeRectF.set(leftStripe + stripeWidth * i, topIndent,
-                    leftStripe + stripeWidth * (i + 1), canvas.getHeight() - belowIndent);
-            int curColorRes = (i % 2 == 0) ? mBackColor1 : mBackColor2;
-            mStripePaint.setColor(curColorRes);
-
-            canvas.drawRect(mStripeRectF, mStripePaint);
-        }
-
-
-        drawBorderLines(canvas);
-        drawRectsTopAndBelow(canvas);
-        drawTextLabelsUnderStripes(canvas);
         drawHighlightedStripe(canvas);
         drawGoalLineAndText(canvas);
         drawHorizontalLinesAndText(canvas);
+    }
+
+    @Override
+    protected void drawTextLabelsUnderStripes(Canvas canvas) {
+        for (int i = 0; i < months.length; ++i) {
+            if (i == stripeId && curTime / segmentDuration >= stripeId) {
+                canvas.translate(labelsUnderX[stripeId], labelsUnderY[stripeId]);
+                goalUnderStripes.draw(canvas);
+                canvas.translate(-labelsUnderX[stripeId], -labelsUnderY[stripeId]);
+            } else {
+                canvas.translate(labelsUnderX[i], labelsUnderY[i]);
+                textUnderStripes[i].draw(canvas);
+                canvas.translate(-labelsUnderX[i], -labelsUnderY[i]);
+            }
+        }
     }
 
     private void drawHighlightedStripe(Canvas canvas) {
@@ -582,37 +452,6 @@ public class GraphView extends View {
         }
     }
 
-    private void drawTextLabelsUnderStripes(Canvas canvas) {
-        for (int i = 0; i < months.length; ++i) {
-            if (i == stripeId && curTime / segmentDuration >= stripeId) {
-                canvas.translate(labelsUnderX[stripeId], labelsUnderY[stripeId]);
-                goalUnderStripes.draw(canvas);
-                canvas.translate(-labelsUnderX[stripeId], -labelsUnderY[stripeId]);
-                //canvas.drawText(months[i], labelsUnderX[i], labelsUnderY[i], mGoalTextPaint);
-            } else {
-                canvas.translate(labelsUnderX[i], labelsUnderY[i]);
-                textUnderStripes[i].draw(canvas);
-                canvas.translate(-labelsUnderX[i], -labelsUnderY[i]);
-                //canvas.drawText(months[i], labelsUnderX[i], labelsUnderY[i], mTextPaint);
-            }
-        }
-    }
-
-    private void drawRectsTopAndBelow(Canvas canvas) {
-        mStripeRectF.set(0, 0, canvas.getWidth(), topIndent);
-        mStripePaint.setColor(mBackColor2);
-        canvas.drawRect(mStripeRectF, mStripePaint);
-
-        mStripeRectF.set(0, canvas.getHeight() - belowIndent, canvas.getWidth(), canvas.getHeight());
-        mStripePaint.setColor(mBackColor2);
-        canvas.drawRect(mStripeRectF, mStripePaint);
-    }
-
-    private void drawBorderLines(Canvas canvas) {
-        canvas.drawLine(0, topIndent, canvas.getWidth(), topIndent, mLinePaint);
-        canvas.drawLine(0, canvas.getHeight() - belowIndent, canvas.getWidth(),
-                canvas.getHeight() - belowIndent, mLinePaint);
-    }
 
     private void drawGoalLineAndText(Canvas canvas) {
         if (mGoal != 0) {
@@ -756,17 +595,6 @@ public class GraphView extends View {
     }
 
 
-    private void displayError(Canvas canvas) {
-        float errWidth = mErrTextPaint.measureText(graphErrorText);
-
-        int xPos = (int) (canvas.getWidth() - errWidth) / 2;
-        int yPos = (int) ((canvas.getHeight() / 2)
-                - ((mErrTextPaint.descent() + mErrTextPaint.ascent()) / 2));
-
-        canvas.drawRect(mErrRectF, mErrRectPaint);
-        canvas.drawText(graphErrorText, xPos, yPos, mErrTextPaint);
-    }
-
     private float convertValuetoHeight(double mGoal, Double value, float canvasHeight) {
         float indentValue = (headerRatio + borderRatio) * canvasHeight;
         float scaledValue = (float) ((linesMax - value) / (linesMax - linesMin) * graphRatio * canvasHeight);
@@ -796,17 +624,6 @@ public class GraphView extends View {
         requestLayout();
     }
 
-    public String[] getMonths() {
-        return months;
-    }
-
-    public void setMonths(String[] months) {
-        this.months = months;
-
-        init();
-        invalidate();
-        requestLayout();
-    }
 
     public double[] getValues() {
         return values;
@@ -845,41 +662,6 @@ public class GraphView extends View {
         requestLayout();
     }
 
-    public int getmBackColor1() {
-        return mBackColor1;
-    }
-
-    public void setmBackColor1(int mBackColor1) {
-        this.mBackColor1 = mBackColor1;
-
-        init();
-        invalidate();
-        requestLayout();
-    }
-
-    public int getmBackColor2() {
-        return mBackColor2;
-    }
-
-    public void setmBackColor2(int mBackColor2) {
-        this.mBackColor2 = mBackColor2;
-
-        init();
-        invalidate();
-        requestLayout();
-    }
-
-    public int getmBackLineColor() {
-        return mBackLineColor;
-    }
-
-    public void setmBackLineColor(int mBackLineColor) {
-        this.mBackLineColor = mBackLineColor;
-
-        init();
-        invalidate();
-        requestLayout();
-    }
 
     public int getmGraphLineColor() {
         return mGraphLineColor;
@@ -887,31 +669,6 @@ public class GraphView extends View {
 
     public void setmGraphLineColor(int mGraphLineColor) {
         this.mGraphLineColor = mGraphLineColor;
-
-        init();
-        invalidate();
-        requestLayout();
-    }
-
-    public int getmTextColor() {
-        return mTextColor;
-    }
-
-    public void setmTextColor(int mTextColor) {
-        this.mTextColor = mTextColor;
-
-        init();
-        invalidate();
-        requestLayout();
-    }
-
-
-    public boolean ismFillNa() {
-        return mFillNa;
-    }
-
-    public void setmFillNa(boolean mFillNa) {
-        this.mFillNa = mFillNa;
 
         init();
         invalidate();

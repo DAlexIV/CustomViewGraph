@@ -4,7 +4,8 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 
-import com.onetrak.graph.customview.graphview.GraphView;
+import com.onetrak.graph.customview.graphview.BaseGraphView;
+import com.onetrak.graph.customview.graphview.UnoGraphView;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -32,7 +33,8 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    GraphView mGraphView;
+    UnoGraphView mUnoGraphView;
+    BaseGraphView mBaseGraphView;
     int dataId = -2;
     Data[] datasets;
 
@@ -41,7 +43,9 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mGraphView = (GraphView) findViewById(R.id.graph);
+        mUnoGraphView = (UnoGraphView) findViewById(R.id.graph);
+        mBaseGraphView = (BaseGraphView) findViewById(R.id.empty_graph);
+
         datasets = new Data[]{new Data(new String[]{"March", "April", "May", "June", "July", "August",
                 "March", "April", "May", "June", "July", "August"},
                 new double[]{95.4, 86.3, 70.0, 65.5, 59.3, 49.3,
@@ -66,9 +70,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setData(String[] months, double[] values, double mGoal) {
-        mGraphView.setMonths(months);
-        mGraphView.setValues(values);
-        mGraphView.setGoal(mGoal);
+        mUnoGraphView.setMonths(months);
+        mUnoGraphView.setValues(values);
+        mUnoGraphView.setGoal(mGoal);
+
+        mBaseGraphView.setMonths(months);
     }
 
     public void onClick(View v) {

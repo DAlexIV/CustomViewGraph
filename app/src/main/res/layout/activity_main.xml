@@ -9,7 +9,7 @@
     android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
-    android:weightSum="10"
+    android:weightSum="17"
     tools:context="com.onetrak.graph.customview.MainActivity">
 
     <com.onetrak.graph.customview.graphview.ArrowedHorizontalScrollView
@@ -18,13 +18,30 @@
         android:layout_weight="5"
         android:scrollbars="none">
 
-        
-        <com.onetrak.graph.customview.graphview.GraphView
+
+        <com.onetrak.graph.customview.graphview.UnoGraphView
             android:id="@+id/graph"
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
-            custom:graph_line_color="@color/graphColor"
-            custom:fill_na="true"/>
+            custom:fill_na="true"
+            custom:graph_line_color="@color/graphColor" />
+        <!--custom:real_width="240"/>-->
+    </com.onetrak.graph.customview.graphview.ArrowedHorizontalScrollView>
+
+
+    <com.onetrak.graph.customview.graphview.ArrowedHorizontalScrollView
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_weight="5"
+        android:scrollbars="none">
+
+
+        <com.onetrak.graph.customview.graphview.BaseGraphView
+            android:id="@+id/empty_graph"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            custom:fill_na="true"
+            custom:graph_line_color="@color/graphColor" />
         <!--custom:real_width="240"/>-->
     </com.onetrak.graph.customview.graphview.ArrowedHorizontalScrollView>
 
@@ -32,10 +49,10 @@
         android:id="@+id/butt"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_weight="7"
         android:onClick="onClick"
         android:paddingLeft="100dp"
         android:paddingRight="100dp"
-        android:layout_weight="9"
         android:text="@string/buttonText" />
 
 </LinearLayout>

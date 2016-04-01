@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <declare-styleable name="GraphView">
+    <declare-styleable name="UnoGraphView">
         <attr name="back_color1" format="integer"/>
         <attr name="back_color2" format="integer"/>
         <attr name="back_line_color" format="integer"/>
