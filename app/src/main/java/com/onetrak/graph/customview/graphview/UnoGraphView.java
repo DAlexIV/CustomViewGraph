@@ -601,16 +601,7 @@ public class UnoGraphView extends BaseGraphView {
         return indentValue + scaledValue;
     }
 
-    private double countMinFNa(double[] valuesAndGoal, double max, double mGoal) {
-        double min = max;
-        for (int i = 0; i < valuesAndGoal.length; ++i)
-            if (valuesAndGoal[i] != 0 && valuesAndGoal[i] < min)
-                min = valuesAndGoal[i];
 
-        if (mGoal < min)
-            min = mGoal;
-        return min;
-    }
 
     public int getColor() {
         return mGraphLineColor;

@@ -258,6 +258,28 @@ public class BaseGraphView extends View {
         }
     }
 
+    // TODO move this to appropriate classes
+    protected double countMinFNa(double[] valuesAndGoal, double max, double mGoal) {
+        double min = max;
+        for (int i = 0; i < valuesAndGoal.length; ++i)
+            if (valuesAndGoal[i] != 0 && valuesAndGoal[i] < min)
+                min = valuesAndGoal[i];
+
+        if (mGoal < min)
+            min = mGoal;
+        return min;
+    }
+
+    protected double countMinFNa(double[][] valuesAndGoal, double max) {
+        double min = max;
+        for (int i = 0; i < valuesAndGoal.length; ++i)
+            for (int k = 0; k < valuesAndGoal[i].length; ++k)
+            if (valuesAndGoal[i][k] != 0 && valuesAndGoal[i][k] < min)
+                min = valuesAndGoal[i][k];
+
+        return min;
+    }
+
     protected void initStrings() {
         graphErrorText = getContext().getString(R.string.graphError);
     }
