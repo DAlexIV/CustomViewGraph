@@ -45,14 +45,18 @@ public class HelperLayoutClass {
         return desiredTextSize;
     }
 
-    public static void calculateOKTextSize(Paint paint, float stripeWidth, String[] text) {
+    public static void calculateOKTextSize(Paint paint, float stripeWidth, String[] text, float maxAllowedTextSize) {
         float minTextSize = 1000;
         for (int i = 0; i < text.length; ++i) {
             float currSize = setTextSizeForWidth(paint, stripeWidth, text[i]);
             if (currSize < minTextSize)
                 minTextSize = currSize;
         }
-        paint.setTextSize(minTextSize);
+
+        if (minTextSize > maxAllowedTextSize)
+            paint.setTextSize(maxAllowedTextSize);
+        else
+            paint.setTextSize(minTextSize);
     }
 
     public static int getScreenWidth(Context context)

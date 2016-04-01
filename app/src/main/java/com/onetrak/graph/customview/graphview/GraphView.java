@@ -300,7 +300,8 @@ public class GraphView extends View {
             }
 
             // Calculating textSize for labels under stripes months
-            HelperLayoutClass.calculateOKTextSize(mTextPaint, textRatio * stripeWidth, months);
+            HelperLayoutClass.calculateOKTextSize(mTextPaint, textRatio * stripeWidth, months,
+                    belowIndent / 2);
             mTextSize = (int) mTextPaint.getTextSize();
             leftStripe = mTextPaint.measureText(testText) + mTextSize / 2;
             stripeWidth = (w - leftStripe) / months.length;
