@@ -6,6 +6,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.util.AttributeSet;
+import android.view.MotionEvent;
 import android.widget.HorizontalScrollView;
 
 /**
@@ -14,6 +15,7 @@ import android.widget.HorizontalScrollView;
 public class ArrowedHorizontalScrollView extends HorizontalScrollView {
     Paint mArrowPaint;
     Path mLeftArrowPath;
+    public boolean isAnimationFinished = false;
     public static final float footerRatio = 0.1f;
     public static final float lineRatio = 0.01f;
     public static final float marginRatio = 0.025f;
@@ -44,9 +46,9 @@ public class ArrowedHorizontalScrollView extends HorizontalScrollView {
         float indent = marginRatio * canvas.getHeight();
         float belowIndent = footerRatio * canvas.getHeight();
         mLeftArrowPath.reset();
-        mLeftArrowPath.moveTo(globalIndent + 2 * indent, canvas.getHeight() - belowIndent - 3 * indent);
-        mLeftArrowPath.lineTo(globalIndent + indent, canvas.getHeight() - belowIndent - 2 * indent);
-        mLeftArrowPath.lineTo(globalIndent + 2 * indent, canvas.getHeight() - belowIndent - indent);
+        mLeftArrowPath.moveTo(globalIndent + 3 * indent, canvas.getHeight() - belowIndent - 3 * indent);
+        mLeftArrowPath.lineTo(globalIndent + 2 * indent, canvas.getHeight() - belowIndent - 2 * indent);
+        mLeftArrowPath.lineTo(globalIndent + 3 * indent, canvas.getHeight() - belowIndent - indent);
         canvas.drawPath(mLeftArrowPath, mArrowPaint);
     }
 
@@ -54,10 +56,28 @@ public class ArrowedHorizontalScrollView extends HorizontalScrollView {
         float indent = marginRatio * canvas.getHeight();
         float belowIndent = footerRatio * canvas.getHeight();
         mLeftArrowPath.reset();
-        mLeftArrowPath.moveTo(globalIndent - 2 * indent, canvas.getHeight() - belowIndent - 3 * indent);
-        mLeftArrowPath.lineTo(globalIndent - indent, canvas.getHeight() - belowIndent - 2 * indent);
-        mLeftArrowPath.lineTo(globalIndent - 2 * indent, canvas.getHeight() - belowIndent - indent);
+        mLeftArrowPath.moveTo(globalIndent - 3 * indent, canvas.getHeight() - belowIndent - 3 * indent);
+        mLeftArrowPath.lineTo(globalIndent - 2 * indent, canvas.getHeight() - belowIndent - 2 * indent);
+        mLeftArrowPath.lineTo(globalIndent - 3 * indent, canvas.getHeight() - belowIndent - indent);
         canvas.drawPath(mLeftArrowPath, mArrowPaint);
+    }
+
+    public boolean isAnimationFinished() {
+        return isAnimationFinished;
+    }
+
+    public void setAnimationFinished(boolean animationFinished) {
+        isAnimationFinished = animationFinished;
+    }
+
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent ev) {
+
+        if (isAnimationFinished) {
+            return super.onInterceptTouchEvent(ev);
+        } else {
+            return false;
+        }
     }
 }
 

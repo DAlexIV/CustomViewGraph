@@ -23,7 +23,7 @@
             android:id="@+id/graph"
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
-            custom:graph_line_color="@color/colorAccent"
+            custom:graph_line_color="@color/graphColor"
             custom:fill_na="true"/>
         <!--custom:real_width="240"/>-->
     </com.onetrak.graph.customview.graphview.ArrowedHorizontalScrollView>

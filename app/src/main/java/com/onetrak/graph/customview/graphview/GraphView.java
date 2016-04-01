@@ -12,6 +12,8 @@ import android.graphics.Path;
 import android.graphics.Point;
 import android.graphics.RectF;
 import android.graphics.Shader;
+import android.text.Layout;
+import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
@@ -90,6 +92,7 @@ public class GraphView extends View {
     int mTextSize;
     double linesMin;
     double linesMax;
+    double firstLineHeight;
 
     Point[] lowerTrianglePoints;
     Point[] upperTrianglePoints;
@@ -98,13 +101,17 @@ public class GraphView extends View {
     // Layout arrays
     float[] valuesRealHeight;
     float[] circleCentresX;
-    long [] timeAnim;
+    long[] timeAnim;
 
     float[] labelsUnderX;
     float[] labelsUnderY;
     float[] monthsMeasured;
     float[] originalX;
     float[] originalY;
+    float[] horizontalLinesH;
+    StaticLayout[] textUnderStripes;
+    StaticLayout[] weightsTextLayout;
+    StaticLayout goalUnderStripes;
 
     // Constants
     public static float leftStripe;
@@ -130,12 +137,13 @@ public class GraphView extends View {
     private long startClickTime = 0;
 
     // Parent
-    HorizontalScrollView hsv;
+    ArrowedHorizontalScrollView hsv;
 
     // Strings from context
     String localMeasurementSystem;
     String graphErrorText;
     String goalLineText;
+    String[] weightsText;
 
     public GraphView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -312,7 +320,6 @@ public class GraphView extends View {
             mLinePaint.setStrokeWidth(graphStrokeWidth / 4);
 
             mGraphPaint.setStrokeWidth(graphStrokeWidth);
-//            mGraphPaint.setPathEffect(new CornerPathEffect(stripeWidth / 10));
             mGradPaint.setStrokeWidth(graphStrokeWidth);
 
             mGradPaint.setShader(new LinearGradient(0, 0, 0, getHeight(),
@@ -339,7 +346,7 @@ public class GraphView extends View {
 
         if (stripeId != -1 && curTime / segmentDuration >= stripeId) {
             lowerTrianglePoints[0].set((int) (leftStripe + stripeId * stripeWidth + stripeWidth / 2),
-                    (int) (labelsUnderY[stripeId] + lowerTrianglePadding));
+                    (int) (labelsUnderY[stripeId] + mTextSize + lowerTrianglePadding));
             lowerTrianglePoints[1].set((int) (leftStripe + stripeId * stripeWidth + 3 * stripeWidth / 4),
                     (int) (h - lowerTriangleBound));
             lowerTrianglePoints[2].set((int) (leftStripe + stripeId * stripeWidth + stripeWidth / 4),
@@ -360,7 +367,7 @@ public class GraphView extends View {
         // Precalculating data for circles
         // TODO refactoring needed
         float[] valuesRealHeightCount = new float[months.length];
-        float[] circleCentresXCount  = new float[months.length];
+        float[] circleCentresXCount = new float[months.length];
         long[] tempAnim = new long[months.length];
 
         int last = 0;
@@ -408,9 +415,29 @@ public class GraphView extends View {
         for (int i = 0; i < months.length; ++i) {
             labelsUnderX[i] = leftStripe + stripeWidth * i
                     + 0.5f * (stripeWidth - mTextPaint.measureText(months[i]));
-            labelsUnderY[i] = h - belowIndent + mTextSize;
+            labelsUnderY[i] = h - belowIndent;
         }
 
+        findMinAndMax();
+
+        // Calculating static layouts
+        textUnderStripes = new StaticLayout[months.length];
+        for (int i = 0; i < months.length; ++i)
+            textUnderStripes[i] = new StaticLayout(months[i], mTextPaint,
+                    (int) (textRatio * stripeWidth),
+                    Layout.Alignment.ALIGN_NORMAL, 1, 1, true);
+
+        if (stripeId != -1) {
+            goalUnderStripes = new StaticLayout(months[stripeId], mGoalTextPaint,
+                    (int) (textRatio * stripeWidth),
+                    Layout.Alignment.ALIGN_NORMAL, 1, 1, true);
+        }
+
+        calculateLinesHeights(h);
+
+    }
+
+    private void findMinAndMax() {
         // Precalculate data for lines
         double localMax = 0;
         double localMin = 0;
@@ -421,8 +448,39 @@ public class GraphView extends View {
                 localMin = values[i];
         }
 
+        if (localMax < mGoal)
+            localMax = mGoal;
+        if (localMin > mGoal)
+            localMin = mGoal;
         linesMax = localMax;
-        linesMin = mFillNa ? countMinFNa(values, linesMax) : localMin;
+
+        // If we need to fill zeros, we will recount minimum
+        linesMin = mFillNa ? countMinFNa(values, linesMax, mGoal) : localMin;
+    }
+
+    private void calculateLinesHeights(int h) {
+        graphStep = (int) (linesMax - linesMin) / preferredNumLines;
+        firstLineHeight = (int) (linesMin + linesMin % graphStep);
+
+
+        // Sorry for that shitty piece of code, I'm just lazy to make it right
+        int actualNumberOfLines = 0;
+        for (double curHeight = firstLineHeight; curHeight < linesMax; curHeight += graphStep)
+            ++actualNumberOfLines;
+
+        horizontalLinesH = new float[actualNumberOfLines];
+        weightsText = new String[actualNumberOfLines];
+        weightsTextLayout = new StaticLayout[actualNumberOfLines];
+
+
+        int i = 0;
+        for (double curHeight = firstLineHeight; curHeight < linesMax; curHeight += graphStep, i++) {
+            horizontalLinesH[i] = convertValuetoHeight(mGoal, curHeight, h);
+            weightsText[i] = Integer.toString((int) curHeight) + " "
+                    + localMeasurementSystem;
+            weightsTextLayout[i] = new StaticLayout(weightsText[i], mTextPaint,
+                    (int) (leftStripe), Layout.Alignment.ALIGN_NORMAL, 1, 1, true);
+        }
     }
 
 
@@ -432,13 +490,18 @@ public class GraphView extends View {
         if (months == null || values == null) {
             displayError(canvas);
         } else {
-            hsv = (HorizontalScrollView) getParent();
+            hsv = (ArrowedHorizontalScrollView) getParent();
 
             drawBackground(canvas);
 
             // Measure animation time
             curTime = System.currentTimeMillis() - startTime;
             drawGraphLines(canvas);
+
+            if (curTime < animationDuration)
+                postInvalidateDelayed(1000 / framesPerSecond);
+            hsv.setAnimationFinished(!(curTime < animationDuration));
+
             invalidate();
         }
     }
@@ -451,19 +514,21 @@ public class GraphView extends View {
                 startClickTime = System.currentTimeMillis();
                 return true;
             case MotionEvent.ACTION_UP:
-                long clickDuration = System.currentTimeMillis() - startClickTime;
-                if (clickDuration < MAX_CLICK_DURATION) {
-                    int x = (int) event.getX();
-                    if (x >= leftStripe) {
-                        stripeId = (int) ((x - leftStripe) / stripeWidth);
+                if (System.currentTimeMillis() - startTime > animationDuration) {
+                    long clickDuration = System.currentTimeMillis() - startClickTime;
+                    if (clickDuration < MAX_CLICK_DURATION) {
+                        int x = (int) event.getX();
+                        if (x >= leftStripe) {
+                            stripeId = (int) ((x - leftStripe) / stripeWidth);
 
-                        //init();
-                        invalidate();
-                        requestLayout();
+                            //init();
+                            invalidate();
+                            requestLayout();
+                        }
                     }
+                    invalidate();
+                    requestLayout();
                 }
-                invalidate();
-                requestLayout();
                 return true;
         }
         return false;
@@ -519,10 +584,17 @@ public class GraphView extends View {
 
     private void drawTextLabelsUnderStripes(Canvas canvas) {
         for (int i = 0; i < months.length; ++i) {
-            if (i == stripeId && curTime / segmentDuration >= stripeId)
-                canvas.drawText(months[i], labelsUnderX[i], labelsUnderY[i], mGoalTextPaint);
-            else
-                canvas.drawText(months[i], labelsUnderX[i], labelsUnderY[i], mTextPaint);
+            if (i == stripeId && curTime / segmentDuration >= stripeId) {
+                canvas.translate(labelsUnderX[stripeId], labelsUnderY[stripeId]);
+                goalUnderStripes.draw(canvas);
+                canvas.translate(-labelsUnderX[stripeId], -labelsUnderY[stripeId]);
+                //canvas.drawText(months[i], labelsUnderX[i], labelsUnderY[i], mGoalTextPaint);
+            } else {
+                canvas.translate(labelsUnderX[i], labelsUnderY[i]);
+                textUnderStripes[i].draw(canvas);
+                canvas.translate(-labelsUnderX[i], -labelsUnderY[i]);
+                //canvas.drawText(months[i], labelsUnderX[i], labelsUnderY[i], mTextPaint);
+            }
         }
     }
 
@@ -564,18 +636,17 @@ public class GraphView extends View {
     }
 
     private void drawHorizontalLinesAndText(Canvas canvas) {
-        graphStep = (int) (linesMax - linesMin) / preferredNumLines;
-        double firstLineHeight = (int) (linesMin + linesMin % graphStep);
-
-
-        for (double curHeight = firstLineHeight; curHeight < linesMax; curHeight += graphStep) {
-            float value = convertValuetoHeight(mGoal, curHeight, canvas.getHeight());
-
-            if (value < goalStart || value > goalEnd + 5 * mTextSize / 4) {
-                canvas.drawLine(0, value, canvas.getWidth(), value, mLinePaint);
-                canvas.drawText(Integer.toString((int) curHeight) + " "
-                                + localMeasurementSystem, mTextSize / 4,
-                        value - mTextSize / 4, mTextPaint);
+        int i = 0;
+        for (double curHeight = firstLineHeight; curHeight < linesMax; curHeight += graphStep, i++) {
+            if (horizontalLinesH[i] < goalStart || horizontalLinesH[i] > goalEnd + 5 * mTextSize / 4) {
+                canvas.drawLine(0, horizontalLinesH[i], canvas.getWidth(), horizontalLinesH[i], mLinePaint);
+                float xPos = mTextSize / 4;
+                float yPos = horizontalLinesH[i] - 5 * mTextSize / 4;
+                canvas.translate(xPos, yPos);
+                weightsTextLayout[i].draw(canvas);
+                canvas.translate(-xPos, -yPos);
+//                canvas.drawText(weightsText[i], mTextSize / 4,
+//                        horizontalLinesH[i] - mTextSize / 4, mTextPaint);
             }
         }
 
@@ -585,10 +656,6 @@ public class GraphView extends View {
         drawAnimatedLines(canvas);
         drawAnimatedCircles(canvas);
         drawHighligthedCirclesAndTriangles(canvas);
-
-        if (curTime < animationDuration)
-            postInvalidateDelayed(1000 / framesPerSecond);
-
     }
 
     private void drawAnimatedLines(Canvas canvas) {
@@ -635,22 +702,30 @@ public class GraphView extends View {
     }
 
     private void drawAnimatedCircles(Canvas canvas) {
-        curTime -= segmentDuration;
         // TODO do not draw is value is null
-        for (int i = 0; i < circleCentresX.length; ++i) {
-            if (curTime / segmentDuration > i - 1) {
+
+        // draw fist one
+        canvas.drawCircle(circleCentresX[0], valuesRealHeight[0],
+                bigCircleRatio * canvas.getHeight(), mBigCirclePaint);
+        canvas.drawCircle(circleCentresX[0], valuesRealHeight[0],
+                smallCircleRatio * canvas.getHeight(), mSmallCirclePaint);
+
+        curTime -= segmentDuration;
+        for (int i = 1; i < circleCentresX.length; ++i) {
+            if (curTime > timeAnim[i]) {
                 canvas.drawCircle(circleCentresX[i], valuesRealHeight[i],
                         bigCircleRatio * canvas.getHeight(), mBigCirclePaint);
                 canvas.drawCircle(circleCentresX[i], valuesRealHeight[i],
                         smallCircleRatio * canvas.getHeight(), mSmallCirclePaint);
-            }
-            if (curTime / segmentDuration == i - 1) {
-                float value = ((float) (curTime % segmentDuration)) / segmentDuration
+            } else if (curTime > timeAnim[i - 1]) {
+                long localSegDur = timeAnim[i] - timeAnim[i - 1];
+                float value = ((float) (curTime - timeAnim[i - 1]) / localSegDur)
                         * smallCircleRatio * canvas.getHeight();
                 canvas.drawCircle(circleCentresX[i], valuesRealHeight[i],
                         2 * value, mBigCirclePaint);
                 canvas.drawCircle(circleCentresX[i], valuesRealHeight[i],
                         value, mSmallCirclePaint);
+                break;
             }
         }
     }
@@ -698,13 +773,17 @@ public class GraphView extends View {
         return indentValue + scaledValue;
     }
 
-    private double countMinFNa(double[] valuesAndGoal, double max) {
+    private double countMinFNa(double[] valuesAndGoal, double max, double mGoal) {
         double min = max;
         for (int i = 0; i < valuesAndGoal.length; ++i)
             if (valuesAndGoal[i] != 0 && valuesAndGoal[i] < min)
                 min = valuesAndGoal[i];
+
+        if (mGoal < min)
+            min = mGoal;
         return min;
     }
+
     public int getColor() {
         return mGraphLineColor;
     }
