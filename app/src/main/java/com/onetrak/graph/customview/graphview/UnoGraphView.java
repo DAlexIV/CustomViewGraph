@@ -62,8 +62,6 @@ public class UnoGraphView extends BaseGraphView {
 
     float goalStart;
     float goalEnd;
-    double linesMin;
-    double linesMax;
     double firstLineHeight;
 
     Point[] lowerTrianglePoints;
@@ -83,8 +81,6 @@ public class UnoGraphView extends BaseGraphView {
     StaticLayout goalUnderStripes;
 
     // Constants
-    public static final float viewRatio = (float) 9 / 16;
-
     public static final float bigCircleRatio = 0.025f;
     public static final float smallCircleRatio = 0.0125f;
     public static final float stripLength = 5f;
@@ -118,6 +114,7 @@ public class UnoGraphView extends BaseGraphView {
         a.recycle();
         init();
     }
+
     @Override
     protected void init() {
         super.init();
@@ -135,6 +132,7 @@ public class UnoGraphView extends BaseGraphView {
 
         mUpperTrianglePath = new Path();
         mUpperTrianglePath.setFillType(Path.FillType.EVEN_ODD);
+
         mLowerTrianglePath = new Path();
         mLowerTrianglePath.setFillType(Path.FillType.EVEN_ODD);
 
@@ -142,6 +140,7 @@ public class UnoGraphView extends BaseGraphView {
         lowerTrianglePoints = new Point[3];
         for (int i = 0; i < 3; ++i)
             lowerTrianglePoints[i] = new Point();
+
         upperTrianglePoints = new Point[3];
         for (int i = 0; i < 3; ++i)
             upperTrianglePoints[i] = new Point();
@@ -272,7 +271,7 @@ public class UnoGraphView extends BaseGraphView {
         long curAnimDur = 0;
         for (int i = 0; i < values.length; ++i) {
             float valueX = leftStripe + stripeWidth * ((float) i + 0.5f);
-            float valueY = convertValuetoHeight(mGoal, values[i], h);
+            float valueY = convertValuetoHeight(values[i], h);
 
             if (values[i] != 0) {
                 tempAnim[last] = curAnimDur;
@@ -298,9 +297,6 @@ public class UnoGraphView extends BaseGraphView {
         }
 
 
-        findMinAndMax();
-
-
         if (stripeId != -1) {
             goalUnderStripes = new StaticLayout(months[stripeId], mGoalTextPaint,
                     (int) (textRatio * stripeWidth),
@@ -311,7 +307,7 @@ public class UnoGraphView extends BaseGraphView {
 
     }
 
-    private void findMinAndMax() {
+    protected void findMinAndMax() {
         // Precalculate data for lines
         double localMax = 0;
         double localMin = 0;
@@ -326,6 +322,7 @@ public class UnoGraphView extends BaseGraphView {
             localMax = mGoal;
         if (localMin > mGoal)
             localMin = mGoal;
+
         linesMax = localMax;
 
         // If we need to fill zeros, we will recount minimum
@@ -349,7 +346,7 @@ public class UnoGraphView extends BaseGraphView {
 
         int i = 0;
         for (double curHeight = firstLineHeight; curHeight < linesMax; curHeight += graphStep, i++) {
-            horizontalLinesH[i] = convertValuetoHeight(mGoal, curHeight, h);
+            horizontalLinesH[i] = convertValuetoHeight(curHeight, h);
             weightsText[i] = Integer.toString((int) curHeight) + " "
                     + localMeasurementSystem;
             weightsTextLayout[i] = new StaticLayout(weightsText[i], mTextPaint,
@@ -357,6 +354,16 @@ public class UnoGraphView extends BaseGraphView {
         }
     }
 
+    protected double countMinFNa(double[] valuesAndGoal, double max, double mGoal) {
+        double min = max;
+        for (int i = 0; i < valuesAndGoal.length; ++i)
+            if (valuesAndGoal[i] != 0 && valuesAndGoal[i] < min)
+                min = valuesAndGoal[i];
+
+        if (mGoal < min)
+            min = mGoal;
+        return min;
+    }
 
     @Override
     protected void onDraw(Canvas canvas) {
@@ -393,9 +400,6 @@ public class UnoGraphView extends BaseGraphView {
                         if (x >= leftStripe) {
                             stripeId = (int) ((x - leftStripe) / stripeWidth);
 
-                            //init();
-                            invalidate();
-                            requestLayout();
                         }
                     }
                     invalidate();
@@ -455,7 +459,7 @@ public class UnoGraphView extends BaseGraphView {
 
     private void drawGoalLineAndText(Canvas canvas) {
         if (mGoal != 0) {
-            float value = convertValuetoHeight(mGoal, mGoal, canvas.getHeight());
+            float value = convertValuetoHeight(mGoal, canvas.getHeight());
 
             // Draw line
             mGoalPath.reset();
@@ -484,8 +488,6 @@ public class UnoGraphView extends BaseGraphView {
                 canvas.translate(xPos, yPos);
                 weightsTextLayout[i].draw(canvas);
                 canvas.translate(-xPos, -yPos);
-//                canvas.drawText(weightsText[i], mTextSize / 4,
-//                        horizontalLinesH[i] - mTextSize / 4, mTextPaint);
             }
         }
 
@@ -595,14 +597,6 @@ public class UnoGraphView extends BaseGraphView {
     }
 
 
-    private float convertValuetoHeight(double mGoal, Double value, float canvasHeight) {
-        float indentValue = (headerRatio + borderRatio) * canvasHeight;
-        float scaledValue = (float) ((linesMax - value) / (linesMax - linesMin) * graphRatio * canvasHeight);
-        return indentValue + scaledValue;
-    }
-
-
-
     public int getColor() {
         return mGraphLineColor;
     }
@@ -676,5 +670,6 @@ public class UnoGraphView extends BaseGraphView {
     protected int getSuggestedMinimumHeight() {
         return 240;
     }
+
 
 }

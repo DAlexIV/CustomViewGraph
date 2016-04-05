@@ -9,12 +9,12 @@
     android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
-    android:weightSum="17"
+    android:weightSum="12"
     tools:context="com.onetrak.graph.customview.MainActivity">
 
     <com.onetrak.graph.customview.graphview.ArrowedHorizontalScrollView
         android:layout_width="wrap_content"
-        android:layout_height="match_parent"
+        android:layout_height="0px"
         android:layout_weight="5"
         android:scrollbars="none">
 
@@ -29,15 +29,16 @@
     </com.onetrak.graph.customview.graphview.ArrowedHorizontalScrollView>
 
 
+
     <com.onetrak.graph.customview.graphview.ArrowedHorizontalScrollView
         android:layout_width="wrap_content"
-        android:layout_height="match_parent"
+        android:layout_height="0px"
         android:layout_weight="5"
         android:scrollbars="none">
 
 
-        <com.onetrak.graph.customview.graphview.BaseGraphView
-            android:id="@+id/empty_graph"
+        <com.onetrak.graph.customview.graphview.MultiGraphView
+            android:id="@+id/multi_graph"
             android:layout_width="wrap_content"
             android:layout_height="match_parent"
             custom:fill_na="true"
@@ -48,8 +49,8 @@
     <Button
         android:id="@+id/butt"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_weight="7"
+        android:layout_height="0px"
+        android:layout_weight="2"
         android:onClick="onClick"
         android:paddingLeft="100dp"
         android:paddingRight="100dp"

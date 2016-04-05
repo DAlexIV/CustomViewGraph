@@ -18,7 +18,7 @@ import com.onetrak.graph.customview.R;
 /**
  * Created by aleksey.ivanov on 01.04.2016.
  */
-public class BaseGraphView extends View {
+public abstract class BaseGraphView extends View {
     // Public data
     int mBackColor1;
     int mBackColor2;
@@ -47,6 +47,8 @@ public class BaseGraphView extends View {
     float stripeWidth;
     int mTextSize;
     float graphStrokeWidth;
+    double linesMin;
+    double linesMax;
 
     // Layout arrays
     float[] monthsMeasured;
@@ -146,6 +148,8 @@ public class BaseGraphView extends View {
             // Counting stripeWidth and indents
             stripeWidth = w / (months.length + 1);
 
+            findMinAndMax();
+
 
             // If stripe is too narrow, then
             // we will increase width of graph to required minimum
@@ -195,8 +199,7 @@ public class BaseGraphView extends View {
         super.onDraw(canvas);
         if (months == null) {
             displayError(canvas);
-        }
-        else {
+        } else {
             drawBackground(canvas);
         }
     }
@@ -249,36 +252,25 @@ public class BaseGraphView extends View {
 
     protected void drawTextLabelsUnderStripes(Canvas canvas) {
         for (int i = 0; i < months.length; ++i) {
-            {
-                canvas.translate(labelsUnderX[i], labelsUnderY[i]);
-                textUnderStripes[i].draw(canvas);
-                canvas.translate(-labelsUnderX[i], -labelsUnderY[i]);
-                //canvas.drawText(months[i], labelsUnderX[i], labelsUnderY[i], mTextPaint);
-            }
+            canvas.translate(labelsUnderX[i], labelsUnderY[i]);
+            textUnderStripes[i].draw(canvas);
+            canvas.translate(-labelsUnderX[i], -labelsUnderY[i]);
         }
     }
 
+
+    public float convertValuetoHeight(Double value, float canvasHeight) {
+        float indentValue = (headerRatio + borderRatio) * canvasHeight;
+        float scaledValue = (float) ((linesMax - value) / (linesMax - linesMin) * graphRatio * canvasHeight);
+        return indentValue + scaledValue;
+    }
+
+
+
     // TODO move this to appropriate classes
-    protected double countMinFNa(double[] valuesAndGoal, double max, double mGoal) {
-        double min = max;
-        for (int i = 0; i < valuesAndGoal.length; ++i)
-            if (valuesAndGoal[i] != 0 && valuesAndGoal[i] < min)
-                min = valuesAndGoal[i];
 
-        if (mGoal < min)
-            min = mGoal;
-        return min;
-    }
 
-    protected double countMinFNa(double[][] valuesAndGoal, double max) {
-        double min = max;
-        for (int i = 0; i < valuesAndGoal.length; ++i)
-            for (int k = 0; k < valuesAndGoal[i].length; ++k)
-            if (valuesAndGoal[i][k] != 0 && valuesAndGoal[i][k] < min)
-                min = valuesAndGoal[i][k];
 
-        return min;
-    }
 
     protected void initStrings() {
         graphErrorText = getContext().getString(R.string.graphError);
@@ -295,6 +287,7 @@ public class BaseGraphView extends View {
         invalidate();
         requestLayout();
     }
+
     public int getmTextColor() {
         return mTextColor;
     }
@@ -354,4 +347,6 @@ public class BaseGraphView extends View {
         invalidate();
         requestLayout();
     }
+
+    protected abstract void findMinAndMax();
 }

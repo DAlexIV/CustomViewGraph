@@ -1,65 +1,292 @@
 package com.onetrak.graph.customview.graphview;
 
 import android.content.Context;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.CornerPathEffect;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.util.AttributeSet;
+import android.view.MotionEvent;
 
 /**
  * Created by aleksey.ivanov on 01.04.2016.
  */
 public class MultiGraphView extends BaseGraphView {
+    // Animation
+    long startTime;
+    long animationDuration;
+    long curTime;
+
+
     // Public data
     int valuesPerStripe;
     double[][] values;
     int[] colors;
-    float[][] convertedX;
-    float[][] convertedY;
 
-
-    // Layout
-    double linesMax;
-    double linesMin;
 
     // Paints
     Paint[] graphsPaints;
-    public MultiGraphView(Context context, AttributeSet attrs) {
-        super(context, attrs);
+    Paint linePaint;
+    Paint smallCirclePaint;
+    Paint[] bigCirclePaint;
 
+    // Current state
+    int microId;
+    int stripeId;
+
+    // Layout arrays
+    float[][] convertedX;
+    float[][] convertedY;
+    float[][] convertedYDraw;
+
+    // Paths
+    Path[] graphPaths;
+
+    // Parent
+    ArrowedHorizontalScrollView hsv;
+
+    // Constants
+    public static float microInterval;
+    public static final float bigCircleRatio = 0.025f;
+    public static final float smallCircleRatio = 0.025f / 2;
+    public static long segmentDuration = 250;
+    public static long microDuration;
+
+    // Event handling
+    private static final int MAX_CLICK_DURATION = 200;
+    private long startClickTime = 0;
+
+
+    public MultiGraphView(Context context, AttributeSet attrs) {
+
+        super(context, attrs);
+        startTime = System.currentTimeMillis();
+
+        restore();
+    }
+
+    private void restore() {
+        microId = -1;
+        stripeId = -1;
     }
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 
-        calcXAndYValues();
+        if (months != null && values != null && colors != null) {
+
+            microInterval = stripeWidth / (valuesPerStripe * 2);
+            microDuration = segmentDuration / (valuesPerStripe * 2);
+            animationDuration = segmentDuration * months.length;
+            calcXAndYValues();
+            calculateDrawValues();
+
+            initPaintsAndPaths();
+        }
+    }
+
+    private void initPaintsAndPaths() {
+        graphsPaints = new Paint[colors.length];
+        graphPaths = new Path[colors.length];
+
+        for (int i = 0; i < graphsPaints.length; ++i) {
+            graphsPaints[i] = new Paint(Paint.ANTI_ALIAS_FLAG);
+            graphsPaints[i].setColor(colors[i]);
+            graphsPaints[i].setStrokeWidth(graphStrokeWidth / 1.5f);
+            graphsPaints[i].setStyle(Paint.Style.STROKE);
+            graphsPaints[i].setStrokeJoin(Paint.Join.ROUND);
+            graphsPaints[i].setStrokeCap(Paint.Cap.ROUND);
+            graphsPaints[i].setPathEffect(new CornerPathEffect(graphStrokeWidth * 2));
+
+            graphPaths[i] = new Path();
+        }
+
+        linePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        linePaint.setColor(mBackLineColor);
+        linePaint.setStrokeWidth(graphStrokeWidth / 1.5f);
+
+        smallCirclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        smallCirclePaint.setColor(Color.WHITE);
+
+        bigCirclePaint = new Paint[colors.length];
+        for (int i = 0; i < bigCirclePaint.length; ++i) {
+            bigCirclePaint[i] = new Paint(Paint.ANTI_ALIAS_FLAG);
+            bigCirclePaint[i].setColor(colors[i]);
+        }
+    }
+
+    protected void findMinAndMax() {
+        if (values != null) {
+            // Precalculate data for lines
+            double localMax = -1;
+            double localMin = -1;
+            for (int i = 0; i < values.length; ++i)
+                for (int k = 0; k < values[i].length; ++k) {
+                    if (values[i][k] > localMax || localMax == -1)
+                        localMax = values[i][k];
+                    if (values[i][k] < localMin || localMin == -1)
+                        localMin = values[i][k];
+                }
+
+            linesMax = localMax;
+
+            // If we need to fill zeros, we will recount minimum
+            linesMin = mFillNa ? countMinFNa(values, linesMax) : localMin;
+        }
     }
 
     private void calcXAndYValues() {
+        convertedX = new float[values.length][];
+        convertedY = new float[values.length][];
+
         for (int i = 0; i < values.length; ++i) {
-            for (int k = 0; k < values[k].length; ++k) {
-                convertedX[i][k] = leftStripe + (k * stripeWidth / values[i].length);
-                convertedY[i][k] = conve
+            convertedX[i] = new float[valuesPerStripe * months.length];
+            convertedY[i] = new float[valuesPerStripe * months.length];
+
+            for (int k = 0; k < valuesPerStripe * months.length; ++k) {
+                convertedX[i][k] = leftStripe + (k / valuesPerStripe) * stripeWidth
+                        + microInterval + 2 * microInterval * (k % valuesPerStripe);
+                convertedY[i][k] = convertValuetoHeight(values[i][k], h);
             }
         }
     }
 
-    private void findMinAndMax() {
-        // Precalculate data for lines
-        double localMax = 0;
-        double localMin = 0;
-        for (int i = 0; i < values.length; ++i)
-            for (int k = 0; k < values[i].length; ++k)
-            {
-            if (values[i][k] > localMax)
-                localMax = values[i][k];
-            if (localMin < values[i][k])
-                localMin = values[i][k];
+    private void calculateDrawValues() {
+        if (!mFillNa) {
+            convertedYDraw = convertedY;
+        } else {
+            convertedYDraw = new float[values.length][];
+
+            for (int i = 0; i < values.length; ++i) {
+                convertedYDraw[i] = new float[valuesPerStripe * months.length];
+
+                for (int k = 0; k < values[i].length; ++k) {
+                    if (values[i][k] == 0) {
+                        int cur_k = k;
+                        if (k == 0) {
+                            // find next given value
+                            while (cur_k < values[i].length && values[i][cur_k] == 0)
+                                ++cur_k;
+
+                            convertedYDraw[i][k] = convertedY[i][cur_k];
+                        } else if (k == values[i].length - 1) {
+                            // find prev given value
+                            while (cur_k > 0 && values[i][cur_k] == 0)
+                                --cur_k;
+
+                            convertedYDraw[i][k] = convertedY[i][cur_k];
+                        } else {
+                            // find next given value
+
+                            while (cur_k < values[i].length && values[i][cur_k] == 0)
+                                ++cur_k;
+
+                            if (cur_k == values[i].length) {
+                                convertedYDraw[i][k] = convertedYDraw[i][k - 1];
+                            } else {
+                                convertedYDraw[i][k] = convertedYDraw[i][k - 1]
+                                        + ((convertedY[i][cur_k] - convertedYDraw[i][k - 1])
+                                        / (cur_k - k + 1));
+
+                            }
+                        }
+                    } else {
+                        convertedYDraw[i][k] = convertedY[i][k];
+                    }
+                }
+
+            }
         }
+    }
 
-        linesMax = localMax;
+    protected double countMinFNa(double[][] valuesAndGoal, double max) {
+        double min = max;
+        for (int i = 0; i < valuesAndGoal.length; ++i)
+            for (int k = 0; k < valuesAndGoal[i].length; ++k)
+                if (valuesAndGoal[i][k] != 0 && valuesAndGoal[i][k] < min)
+                    min = valuesAndGoal[i][k];
 
-        // If we need to fill zeros, we will recount minimum
-        linesMin = mFillNa ? countMinFNa(values, linesMax) : localMin;
+        return min;
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        switch (event.getAction()) {
+            case MotionEvent.ACTION_DOWN:
+                startClickTime = System.currentTimeMillis();
+                return true;
+            case MotionEvent.ACTION_UP:
+                if (System.currentTimeMillis() - startTime > animationDuration) {
+                    long clickDuration = System.currentTimeMillis() - startClickTime;
+                    if (clickDuration < MAX_CLICK_DURATION) {
+                        int x = (int) event.getX();
+                        if (x >= leftStripe) {
+                            microId = (int) ((x - leftStripe) / (2 * microInterval));
+                            stripeId = (int) ((x - leftStripe) / stripeWidth);
+                        }
+                    }
+                    invalidate();
+                    requestLayout();
+                }
+                return true;
+        }
+        return false;
+    }
+
+    @Override
+    protected void onDraw(Canvas canvas) {
+        super.onDraw(canvas);
+        if (months != null && values != null && colors != null) {
+            hsv = (ArrowedHorizontalScrollView) getParent();
+            // Measure animation time
+            curTime = System.currentTimeMillis() - startTime;
+
+            if (microId != -1) {
+                drawVertLine(canvas);
+            }
+
+            drawGraph(canvas);
+
+            if (microId != -1) {
+                drawCircles(canvas);
+            }
+
+            hsv.setAnimationFinished(!(curTime < animationDuration));
+
+        }
+    }
+
+    private void drawGraph(Canvas canvas) {
+        for (int i = 0; i < values.length; ++i)
+            graphPaths[i].reset();
+
+        for (int i = 0; i < convertedX.length; ++i) {
+            for (int k = 0; k < convertedX[i].length; ++k) {
+                if (k == 0)
+                    graphPaths[i].moveTo(convertedX[i][k], convertedYDraw[i][k]);
+                else {
+
+                    graphPaths[i].lineTo(convertedX[i][k], convertedYDraw[i][k]);
+                }
+            }
+            canvas.drawPath(graphPaths[i], graphsPaints[i]);
+        }
+    }
+
+    private void drawVertLine(Canvas canvas) {
+        float xPos = leftStripe + microInterval + 2 * microInterval * microId;
+        canvas.drawLine(xPos, topIndent, xPos, canvas.getHeight() - belowIndent, linePaint);
+    }
+
+    private void drawCircles(Canvas canvas) {
+        for (int i = 0; i < values.length; ++i) {
+            canvas.drawCircle(convertedX[i][microId], convertedYDraw[i][microId], bigCircleRatio * h,
+                    bigCirclePaint[i]);
+            canvas.drawCircle(convertedX[i][microId], convertedYDraw[i][microId], smallCircleRatio * h,
+                    smallCirclePaint);
+        }
     }
 
     public int getValuesPerStripe() {
@@ -68,6 +295,8 @@ public class MultiGraphView extends BaseGraphView {
 
     public void setValuesPerStripe(int valuesPerStripe) {
         this.valuesPerStripe = valuesPerStripe;
+
+        reinit();
     }
 
     public double[][] getValues() {
@@ -80,6 +309,8 @@ public class MultiGraphView extends BaseGraphView {
                     "multiplication of valuesPerStripe and the number of given months");
         }
         this.values = values;
+
+        reinit();
     }
 
     public int[] getColors() {
@@ -88,5 +319,13 @@ public class MultiGraphView extends BaseGraphView {
 
     public void setColors(int[] colors) {
         this.colors = colors;
+
+        reinit();
+    }
+
+    private void reinit() {
+        restore();
+        invalidate();
+        requestLayout();
     }
 }
