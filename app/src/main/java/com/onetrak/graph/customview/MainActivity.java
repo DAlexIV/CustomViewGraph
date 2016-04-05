@@ -38,7 +38,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    UnoGraphView mUnoGraphView;
+//    UnoGraphView mUnoGraphView;
     MultiGraphView multiGraphView;
     int dataId = -2;
     Data[] datasets;
@@ -48,7 +48,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mUnoGraphView = (UnoGraphView) findViewById(R.id.graph);
+//        mUnoGraphView = (UnoGraphView) findViewById(R.id.graph);
         multiGraphView = (MultiGraphView) findViewById(R.id.multi_graph);
 
         datasets = new Data[]{new Data(new String[]{"March", "April", "May", "June", "July", "August",
@@ -77,9 +77,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setData(String[] months, double[] values, double mGoal) {
-        mUnoGraphView.setMonths(months);
-        mUnoGraphView.setValues(values);
-        mUnoGraphView.setGoal(mGoal);
+//        mUnoGraphView.setMonths(months);
+//        mUnoGraphView.setValues(values);
+//        mUnoGraphView.setGoal(mGoal);
 
     }
 

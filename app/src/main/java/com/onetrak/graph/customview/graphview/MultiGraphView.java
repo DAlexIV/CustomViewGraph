@@ -17,7 +17,7 @@ public class MultiGraphView extends BaseGraphView {
     long startTime;
     long animationDuration;
     long curTime;
-
+    public static long microDuration;
 
     // Public data
     int valuesPerStripe;
@@ -51,7 +51,8 @@ public class MultiGraphView extends BaseGraphView {
     public static final float bigCircleRatio = 0.025f;
     public static final float smallCircleRatio = 0.025f / 2;
     public static long segmentDuration = 250;
-    public static long microDuration;
+    public static int framesPerSecond = 60;
+
 
     // Event handling
     private static final int MAX_CLICK_DURATION = 200;
@@ -61,7 +62,6 @@ public class MultiGraphView extends BaseGraphView {
     public MultiGraphView(Context context, AttributeSet attrs) {
 
         super(context, attrs);
-        startTime = System.currentTimeMillis();
 
         restore();
     }
@@ -69,6 +69,7 @@ public class MultiGraphView extends BaseGraphView {
     private void restore() {
         microId = -1;
         stripeId = -1;
+        startTime = System.currentTimeMillis();
     }
 
     @Override
@@ -253,8 +254,11 @@ public class MultiGraphView extends BaseGraphView {
                 drawCircles(canvas);
             }
 
+            if (curTime < animationDuration)
+                postInvalidateDelayed(1000 / framesPerSecond);
             hsv.setAnimationFinished(!(curTime < animationDuration));
 
+            invalidate();
         }
     }
 
@@ -262,13 +266,28 @@ public class MultiGraphView extends BaseGraphView {
         for (int i = 0; i < values.length; ++i)
             graphPaths[i].reset();
 
+        boolean scrolled = false;
         for (int i = 0; i < convertedX.length; ++i) {
             for (int k = 0; k < convertedX[i].length; ++k) {
                 if (k == 0)
                     graphPaths[i].moveTo(convertedX[i][k], convertedYDraw[i][k]);
                 else {
+                    if (curTime / microDuration > k - 1)
+                        graphPaths[i].lineTo(convertedX[i][k], convertedYDraw[i][k]);
+                    else if (curTime / microDuration == k - 1) {
+                        float curX = convertedX[i][k - 1] + (convertedX[i][k] - convertedX[i][k - 1])
+                                * ((float) (curTime - (k - 1) * microDuration / microDuration));
+                        float curY = convertedYDraw[i][k - 1] + (convertedYDraw[i][k] - convertedYDraw[i][k - 1])
+                                * ((float) (curTime - (k - 1) * microDuration / microDuration));
 
-                    graphPaths[i].lineTo(convertedX[i][k], convertedYDraw[i][k]);
+                        graphPaths[i].lineTo(curX, curY);
+
+                        if (!scrolled) {
+                            hsv.scrollTo((int) (curX - hsv.getWidth() / 2), 0);
+                            scrolled = true;
+                        }
+                        break;
+                    }
                 }
             }
             canvas.drawPath(graphPaths[i], graphsPaints[i]);

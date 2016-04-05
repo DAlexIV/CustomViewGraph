@@ -68,7 +68,7 @@ public abstract class BaseGraphView extends View {
     public final String testText = "70 " + getContext().getString(R.string.localMeasurementSystem);
 
     // String constants
-    public static String graphErrorText;
+    public String graphErrorText = getContext().getString(R.string.graphError);
 
 
     public BaseGraphView(Context context, AttributeSet attrs) {
@@ -265,16 +265,7 @@ public abstract class BaseGraphView extends View {
         return indentValue + scaledValue;
     }
 
-
-
-    // TODO move this to appropriate classes
-
-
-
-
-    protected void initStrings() {
-        graphErrorText = getContext().getString(R.string.graphError);
-    }
+    protected void initStrings() {};
 
     public boolean ismFillNa() {
         return mFillNa;

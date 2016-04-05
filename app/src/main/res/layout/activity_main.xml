@@ -12,21 +12,21 @@
     android:weightSum="12"
     tools:context="com.onetrak.graph.customview.MainActivity">
 
-    <com.onetrak.graph.customview.graphview.ArrowedHorizontalScrollView
-        android:layout_width="wrap_content"
-        android:layout_height="0px"
-        android:layout_weight="5"
-        android:scrollbars="none">
+    <!--<com.onetrak.graph.customview.graphview.ArrowedHorizontalScrollView-->
+        <!--android:layout_width="wrap_content"-->
+        <!--android:layout_height="0px"-->
+        <!--android:layout_weight="5"-->
+        <!--android:scrollbars="none">-->
 
 
-        <com.onetrak.graph.customview.graphview.UnoGraphView
-            android:id="@+id/graph"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            custom:fill_na="true"
-            custom:graph_line_color="@color/graphColor" />
-        <!--custom:real_width="240"/>-->
-    </com.onetrak.graph.customview.graphview.ArrowedHorizontalScrollView>
+        <!--<com.onetrak.graph.customview.graphview.UnoGraphView-->
+            <!--android:id="@+id/graph"-->
+            <!--android:layout_width="wrap_content"-->
+            <!--android:layout_height="match_parent"-->
+            <!--custom:fill_na="true"-->
+            <!--custom:graph_line_color="@color/graphColor" />-->
+        <!--&lt;!&ndash;custom:real_width="240"/>&ndash;&gt;-->
+    <!--</com.onetrak.graph.customview.graphview.ArrowedHorizontalScrollView>-->
 
 
 
