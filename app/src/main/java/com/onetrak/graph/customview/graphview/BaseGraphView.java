@@ -14,6 +14,7 @@ import android.text.TextPaint;
 import android.util.AttributeSet;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.HorizontalScrollView;
 
 import com.onetrak.graph.customview.R;
 
@@ -34,6 +35,7 @@ public abstract class BaseGraphView extends View {
     // Rects
     RectF mErrRectF;
     RectF mStripeRectF;
+    RectF mLeftRect;
 
     // Paints
     Paint mErrRectPaint;
@@ -43,6 +45,7 @@ public abstract class BaseGraphView extends View {
     Paint mLinePaint;
     Paint mGoalPaint;
     TextPaint mGoalTextPaint;
+    Paint mRectPaint;
 
     float[] intervals;
 
@@ -86,13 +89,16 @@ public abstract class BaseGraphView extends View {
     public static final int minStripeDp = 50;
     public static final float textRatio = 0.62f;
     public static final int preferredNumLines = 5;
-    public final String testText = "70 " + getContext().getString(R.string.localMeasurementSystem);
+    public final String testText = "705 " + getContext().getString(R.string.localMeasurementSystem);
 
     // String constants
     public String graphErrorText = getContext().getString(R.string.graphError);
     public String localMeasurementSystem = getContext().getString(R.string.localMeasurementSystem);
     public String goalLineText = "goal";
     String[] weightsText;
+
+    // Parent
+    ArrowedHorizontalScrollView hsv;
 
     public BaseGraphView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -118,6 +124,7 @@ public abstract class BaseGraphView extends View {
         mErrRectF = new RectF();
         mStripeRectF = new RectF();
         mGoalPath = new Path();
+        mLeftRect = new RectF();
 
     }
 
@@ -145,6 +152,8 @@ public abstract class BaseGraphView extends View {
 
         mGoalTextPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
 
+        mRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mRectPaint.setColor(mBackColor2);
     }
 
     @Override
@@ -225,6 +234,9 @@ public abstract class BaseGraphView extends View {
         }
         setMeasuredDimension(w, h);
 
+        if (hsv == null) {
+            hsv = (ArrowedHorizontalScrollView) getParent();
+        }
     }
 
     protected void calculateLinesHeights(int h) {
@@ -260,6 +272,9 @@ public abstract class BaseGraphView extends View {
             displayError(canvas);
         } else {
             drawBackground(canvas);
+
+            mLeftRect.set(hsv.getScrollX() - leftStripe, 0,
+                    hsv.getScrollX() + leftStripe, getHeight());
         }
     }
 
@@ -318,19 +333,39 @@ public abstract class BaseGraphView extends View {
     }
 
 
-    protected void drawHorizontalLinesAndText(Canvas canvas) {
-        int i = 0;
-        for (double curHeight = firstLineHeight; curHeight < linesMax; curHeight += graphStep, i++) {
-            if (horizontalLinesH[i] < goalStart || horizontalLinesH[i] > goalEnd + 5 * mTextSize / 4) {
-                canvas.drawLine(0, horizontalLinesH[i], canvas.getWidth(), horizontalLinesH[i], mLinePaint);
-                float xPos = mTextSize / 4;
+    public void drawHorizontalLines(Canvas canvas) {
+        for (int i = 0; i < horizontalLinesH.length; ++i) {
+            if (horizontalLinesH[i] < goalStart
+                    || horizontalLinesH[i] > goalEnd + 5 * mTextSize / 4) {
+                canvas.drawLine(0, horizontalLinesH[i], canvas.getWidth(),
+                        horizontalLinesH[i], mLinePaint);
+
+            }
+        }
+    }
+
+    public void drawLimitedHorizontalLines(Canvas canvas, float limit) {
+        for (int i = 0; i < horizontalLinesH.length; ++i) {
+            if (horizontalLinesH[i] < goalStart
+                    || horizontalLinesH[i] > goalEnd + 5 * mTextSize / 4) {
+                canvas.drawLine(0, horizontalLinesH[i], limit,
+                        horizontalLinesH[i], mLinePaint);
+
+            }
+        }
+    }
+
+    public void drawHorizontalText(Canvas canvas, float indent) {
+        for (int i = 0; i < horizontalLinesH.length; ++i) {
+            if (horizontalLinesH[i] < goalStart
+                    || horizontalLinesH[i] > goalEnd + 5 * mTextSize / 4) {
+                float xPos = indent + mTextSize / 4;
                 float yPos = horizontalLinesH[i] - 5 * mTextSize / 4;
                 canvas.translate(xPos, yPos);
                 weightsTextLayout[i].draw(canvas);
                 canvas.translate(-xPos, -yPos);
             }
         }
-
     }
 
     public float convertValuetoHeight(Double value, float canvasHeight) {
@@ -339,7 +374,7 @@ public abstract class BaseGraphView extends View {
         return indentValue + scaledValue;
     }
 
-    public void drawGoalLineAndText(Canvas canvas) {
+    protected void drawGoalLine(Canvas canvas) {
         if (mGoal != 0) {
             float value = convertValuetoHeight(mGoal, canvas.getHeight());
 
@@ -349,10 +384,20 @@ public abstract class BaseGraphView extends View {
             mGoalPath.lineTo(canvas.getWidth(), value);
             canvas.drawPath(mGoalPath, mGoalPaint);
 
-            // Draw text
-            mGoalTextPaint.setTextSize(mTextSize);
-            canvas.drawText(goalLineText,
-                    mTextSize / 2, value - mTextSize / 2, mGoalTextPaint);
+            // Count constraints
+            goalStart = value - 3 * mTextSize / 2;
+            goalEnd = value;
+        }
+    }
+    protected void drawGoalLineLimited(Canvas canvas, float limit) {
+        if (mGoal != 0) {
+            float value = convertValuetoHeight(mGoal, canvas.getHeight());
+
+            // Draw line
+            mGoalPath.reset();
+            mGoalPath.moveTo(limit - leftStripe, value);
+            mGoalPath.lineTo(limit, value);
+            canvas.drawPath(mGoalPath, mGoalPaint);
 
             // Count constraints
             goalStart = value - 3 * mTextSize / 2;
@@ -360,7 +405,20 @@ public abstract class BaseGraphView extends View {
         }
     }
 
-    protected void initStrings() {};
+    protected void drawGoalText(Canvas canvas, float indent) {
+        if (mGoal != 0) {
+            float value = convertValuetoHeight(mGoal, canvas.getHeight());
+
+            // Draw text
+            mGoalTextPaint.setTextSize(mTextSize);
+            canvas.drawText(goalLineText,
+                    indent + mTextSize / 2, value - mTextSize / 2, mGoalTextPaint);
+        }
+    }
+
+
+    protected void initStrings() {
+    }
 
     public boolean ismFillNa() {
         return mFillNa;

@@ -51,18 +51,17 @@ public class UnoGraphView extends BaseGraphView {
     Path mUpperTrianglePath;
     Path mLowerTrianglePath;
     Path mHighlightPath;
-
-
     Point[] lowerTrianglePoints;
     Point[] upperTrianglePoints;
     int stripeId;
+
+    // Layout
+    float curX;
 
     // Layout arrays
     float[] valuesRealHeight;
     float[] circleCentresX;
     long[] timeAnim;
-
-
     float[] originalX;
     float[] originalY;
     float[] horizontalLinesH;
@@ -82,8 +81,6 @@ public class UnoGraphView extends BaseGraphView {
     private static final int MAX_CLICK_DURATION = 200;
     private long startClickTime = 0;
 
-    // Parent
-    ArrowedHorizontalScrollView hsv;
 
     // Strings from context
 
@@ -154,10 +151,6 @@ public class UnoGraphView extends BaseGraphView {
         mGradPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
 
-
-
-
-
         mBigCirclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mBigCirclePaint.setColor(mGraphLineColor);
         mBigCirclePaint.setStyle(Paint.Style.FILL_AND_STROKE);
@@ -209,6 +202,8 @@ public class UnoGraphView extends BaseGraphView {
 
             precalculateLayoutArrays(h);
             calculateTriangles(h);
+
+
         }
     }
 
@@ -326,16 +321,22 @@ public class UnoGraphView extends BaseGraphView {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         if (months != null && values != null) {
-            hsv = (ArrowedHorizontalScrollView) getParent();
-
             drawAdditionalBackground(canvas);
 
             // Measure animation time
             curTime = System.currentTimeMillis() - startTime;
             drawGraphLines(canvas);
 
-            if (curTime < animationDuration)
+            canvas.drawRect(mLeftRect, mRectPaint);
+            drawHorizontalText(canvas, hsv.getScrollX());
+            drawGoalText(canvas, hsv.getScrollX());
+            drawLimitedHorizontalLines(canvas, hsv.getScrollX() + leftStripe);
+            drawGoalLineLimited(canvas, hsv.getScrollX() + leftStripe);
+
+            if (curTime < animationDuration) {
                 postInvalidateDelayed(1000 / framesPerSecond);
+                hsv.scrollTo((int) (curX - hsv.getWidth() / 2), 0);
+            }
             hsv.setAnimationFinished(!(curTime < animationDuration));
 
             invalidate();
@@ -371,10 +372,9 @@ public class UnoGraphView extends BaseGraphView {
 
     // Remove multiplication
     protected void drawAdditionalBackground(Canvas canvas) {
-
         drawHighlightedStripe(canvas);
-        drawGoalLineAndText(canvas);
-        drawHorizontalLinesAndText(canvas);
+        drawGoalLine(canvas);
+        drawHorizontalLines(canvas);
     }
 
     @Override
@@ -449,8 +449,8 @@ public class UnoGraphView extends BaseGraphView {
                     mGradPath.lineTo(curPosX, canvas.getHeight() - belowIndent);
                     mGraphPath.lineTo(curPosX, curPosY);
 
+                    curX = curPosX;
 
-                    hsv.scrollTo((int) (curPosX - hsv.getWidth() / 2), 0);
                     break;
                 }
             }

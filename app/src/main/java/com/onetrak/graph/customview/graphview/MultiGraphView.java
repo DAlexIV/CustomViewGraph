@@ -27,7 +27,6 @@ public class MultiGraphView extends BaseGraphView {
     double[][] values;
     int[] colors;
 
-
     // Paints
     Paint[] graphsPaints;
     Paint linePaint;
@@ -63,8 +62,6 @@ public class MultiGraphView extends BaseGraphView {
     private long startClickTime = 0;
 
 
-
-
     public MultiGraphView(Context context, AttributeSet attrs) {
 
         super(context, attrs);
@@ -93,6 +90,7 @@ public class MultiGraphView extends BaseGraphView {
             calculateDrawValues();
 
             initPaintsAndPaths();
+            calculateLinesHeights(h);
         }
     }
 
@@ -273,6 +271,8 @@ public class MultiGraphView extends BaseGraphView {
                 drawVertLine(canvas);
             }
 
+            drawHorizontalLines(canvas);
+            drawHorizontalText(canvas, 0);
             drawGraph(canvas);
 
             if (microId != -1) {
@@ -280,11 +280,14 @@ public class MultiGraphView extends BaseGraphView {
                 drawHiglightedText(canvas);
             }
 
-            if (curTime < animationDuration)
-                postInvalidateDelayed(1000 / framesPerSecond);
-            hsv.setAnimationFinished(!(curTime < animationDuration));
 
+            if (curTime < animationDuration) {
+                postInvalidateDelayed(1000 / framesPerSecond);
+            }
+
+            hsv.setAnimationFinished(!(curTime < animationDuration));
             invalidate();
+
         }
     }
 
@@ -341,7 +344,6 @@ public class MultiGraphView extends BaseGraphView {
     }
 
 
-
     public int getValuesPerStripe() {
         return valuesPerStripe;
     }
@@ -375,6 +377,7 @@ public class MultiGraphView extends BaseGraphView {
 
         reinit();
     }
+
 
     private void reinit() {
         restore();

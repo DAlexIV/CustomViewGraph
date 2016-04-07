@@ -5,6 +5,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.widget.HorizontalScrollView;
@@ -14,52 +15,69 @@ import android.widget.HorizontalScrollView;
  */
 public class ArrowedHorizontalScrollView extends HorizontalScrollView {
     Paint mArrowPaint;
-    Path mLeftArrowPath;
+    Path mArrowPath;
+
+
     public boolean isAnimationFinished = false;
     public static final float footerRatio = 0.1f;
     public static final float lineRatio = 0.01f;
     public static final float marginRatio = 0.025f;
 
+    BaseGraphView chld;
+
     public ArrowedHorizontalScrollView(Context context, AttributeSet attrs) {
         super(context, attrs);
         this.setWillNotDraw(false);
-        mLeftArrowPath = new Path();
+
+        mArrowPath = new Path();
 
         mArrowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mArrowPaint.setColor(Color.BLACK);
         mArrowPaint.setStyle(Paint.Style.STROKE);
-        this.setWillNotDraw(false);
+
+    }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+
+        if (chld == null) {
+            chld = (BaseGraphView) getChildAt(0);
+        }
+        mArrowPaint.setStrokeWidth(getHeight() * lineRatio);
+
     }
 
     @Override
     public void draw(Canvas canvas) {
         super.draw(canvas);
-        mArrowPaint.setStrokeWidth(canvas.getHeight() * lineRatio);
+
         if (getScrollX() != 0)
-            drawLeftArrow(canvas, getScrollX());
-        if (getScrollX() + canvas.getWidth() != getChildAt(0).getWidth())
+            drawLeftArrow(canvas, BaseGraphView.leftStripe + getScrollX());
+        if (getScrollX() + canvas.getWidth() != chld.getWidth())
             drawRightArrow(canvas, getScrollX() + canvas.getWidth());
     }
+
 
 
     private void drawLeftArrow(Canvas canvas, float globalIndent) {
         float indent = marginRatio * canvas.getHeight();
         float belowIndent = footerRatio * canvas.getHeight();
-        mLeftArrowPath.reset();
-        mLeftArrowPath.moveTo(globalIndent + 3 * indent, canvas.getHeight() - belowIndent - 3 * indent);
-        mLeftArrowPath.lineTo(globalIndent + 2 * indent, canvas.getHeight() - belowIndent - 2 * indent);
-        mLeftArrowPath.lineTo(globalIndent + 3 * indent, canvas.getHeight() - belowIndent - indent);
-        canvas.drawPath(mLeftArrowPath, mArrowPaint);
+        mArrowPath.reset();
+        mArrowPath.moveTo(globalIndent + 3 * indent, canvas.getHeight() - belowIndent - 3 * indent);
+        mArrowPath.lineTo(globalIndent + 2 * indent, canvas.getHeight() - belowIndent - 2 * indent);
+        mArrowPath.lineTo(globalIndent + 3 * indent, canvas.getHeight() - belowIndent - indent);
+        canvas.drawPath(mArrowPath, mArrowPaint);
     }
 
     private void drawRightArrow(Canvas canvas, float globalIndent) {
         float indent = marginRatio * canvas.getHeight();
         float belowIndent = footerRatio * canvas.getHeight();
-        mLeftArrowPath.reset();
-        mLeftArrowPath.moveTo(globalIndent - 3 * indent, canvas.getHeight() - belowIndent - 3 * indent);
-        mLeftArrowPath.lineTo(globalIndent - 2 * indent, canvas.getHeight() - belowIndent - 2 * indent);
-        mLeftArrowPath.lineTo(globalIndent - 3 * indent, canvas.getHeight() - belowIndent - indent);
-        canvas.drawPath(mLeftArrowPath, mArrowPaint);
+        mArrowPath.reset();
+        mArrowPath.moveTo(globalIndent - 3 * indent, canvas.getHeight() - belowIndent - 3 * indent);
+        mArrowPath.lineTo(globalIndent - 2 * indent, canvas.getHeight() - belowIndent - 2 * indent);
+        mArrowPath.lineTo(globalIndent - 3 * indent, canvas.getHeight() - belowIndent - indent);
+        canvas.drawPath(mArrowPath, mArrowPaint);
     }
 
     public boolean isAnimationFinished() {

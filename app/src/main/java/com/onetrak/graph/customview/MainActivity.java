@@ -122,6 +122,7 @@ public class MainActivity extends AppCompatActivity {
                     rndVals[i][k] = rnd.nextBoolean() ? 100 * rnd.nextDouble() : 0;
         }
         multiGraphView.setValues(rndVals);
+        multiGraphView.setGoal(50);
         multiGraphView.setColors(new int[]{ContextCompat.getColor(this, R.color.graphColor),
                 ContextCompat.getColor(this, R.color.colorAccent),
                 ContextCompat.getColor(this, R.color.colorPrimary),
@@ -139,6 +140,7 @@ public class MainActivity extends AppCompatActivity {
                 rndVals[i][k] = 100 * rnd.nextDouble();
         }
         multiGraphView.setValues(rndVals);
+        multiGraphView.setGoal(50);
         multiGraphView.setColors(new int[]{ContextCompat.getColor(this, R.color.graphColor),
                 ContextCompat.getColor(this, R.color.colorAccent),
                 ContextCompat.getColor(this, R.color.colorPrimary),
@@ -146,18 +148,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setGoodValues() {
-        multiGraphView.setMonths(new String[]{"January", "February", "March", "April", "May", "June", "July", "August"});
+        multiGraphView.setMonths(new String[]{"January", "February", "March", "April", "May", "June", "July", "August",
+                "January", "February", "March", "April", "May", "June", "July", "August"});
         multiGraphView.setValuesPerStripe(10);
 
         double[][] rndVals = new double[3][];
         Random rnd = new Random();
         for (int i = 0; i < 3; ++i) {
-            rndVals[i] = new double[8 * 10];
-            for (int k = 0; k < 8 * 10; ++k)
+            rndVals[i] = new double[16 * 10];
+            for (int k = 0; k < 16 * 10; ++k)
                 rndVals[i][k] = rnd.nextBoolean() ? 20 * i + k + 10 * rnd.nextDouble() : 0;
         }
 
         multiGraphView.setValues(rndVals);
+        multiGraphView.setGoal(50);
         multiGraphView.setColors(new int[]{Color.parseColor("#009BA1"),
                 Color.parseColor("#8AD9DB"),
                 Color.parseColor("#006569")});
