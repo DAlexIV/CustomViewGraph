@@ -46,11 +46,13 @@ public abstract class BaseGraphView extends View {
     Paint mGoalPaint;
     TextPaint mGoalTextPaint;
     Paint mRectPaint;
+    Paint mArrowPaint;
 
     float[] intervals;
 
     // Paths
     Path mGoalPath;
+    Path mArrowPath;
 
 
     // Layout sizes
@@ -84,6 +86,8 @@ public abstract class BaseGraphView extends View {
     public static final float headerRatio = 0.05f;
     public static final float borderRatio = 0.1f;
     public static final float stripLength = 5f;
+    public static final float lineRatio = 0.01f;
+    public static final float marginRatio = 0.025f;
     public static int graphStep = 10;
     public final double graphRatio = (float) 1 - headerRatio - footerRatio - 2 * borderRatio;
     public static final int minStripeDp = 50;
@@ -154,6 +158,15 @@ public abstract class BaseGraphView extends View {
 
         mRectPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mRectPaint.setColor(mBackColor2);
+
+
+        mArrowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mArrowPaint.setColor(Color.BLACK);
+        mArrowPaint.setStyle(Paint.Style.STROKE);
+
+
+        mArrowPath = new Path();
+
     }
 
     @Override
@@ -207,6 +220,7 @@ public abstract class BaseGraphView extends View {
             stripeWidth = (w - leftStripe) / months.length;
             graphStrokeWidth = h / 100;
             mLinePaint.setStrokeWidth(graphStrokeWidth / 4);
+            mArrowPaint.setStrokeWidth(getHeight() * lineRatio);
 
             // Precalc textSizes
             monthsMeasured = new float[months.length];
@@ -276,6 +290,11 @@ public abstract class BaseGraphView extends View {
 
             mLeftRect.set(hsv.getScrollX() - leftStripe, 0,
                     hsv.getScrollX() + leftStripe, getHeight());
+
+            if (hsv.getScrollX() != 0)
+                drawLeftArrow(canvas, BaseGraphView.leftStripe + hsv.getScrollX());
+            if (hsv.getScrollX() + hsv.getWidth() != getWidth())
+                drawRightArrow(canvas, hsv.getScrollX() + hsv.getWidth());
         }
     }
 
@@ -416,6 +435,28 @@ public abstract class BaseGraphView extends View {
                     indent + mTextSize / 2, value - mTextSize / 2, mGoalTextPaint);
         }
     }
+
+
+    private void drawLeftArrow(Canvas canvas, float globalIndent) {
+        float indent = marginRatio * canvas.getHeight();
+        float belowIndent = footerRatio * canvas.getHeight();
+        mArrowPath.reset();
+        mArrowPath.moveTo(globalIndent + 3 * indent, canvas.getHeight() - belowIndent - 3 * indent);
+        mArrowPath.lineTo(globalIndent + 2 * indent, canvas.getHeight() - belowIndent - 2 * indent);
+        mArrowPath.lineTo(globalIndent + 3 * indent, canvas.getHeight() - belowIndent - indent);
+        canvas.drawPath(mArrowPath, mArrowPaint);
+    }
+
+    private void drawRightArrow(Canvas canvas, float globalIndent) {
+        float indent = marginRatio * canvas.getHeight();
+        float belowIndent = footerRatio * canvas.getHeight();
+        mArrowPath.reset();
+        mArrowPath.moveTo(globalIndent - 3 * indent, canvas.getHeight() - belowIndent - 3 * indent);
+        mArrowPath.lineTo(globalIndent - 2 * indent, canvas.getHeight() - belowIndent - 2 * indent);
+        mArrowPath.lineTo(globalIndent - 3 * indent, canvas.getHeight() - belowIndent - indent);
+        canvas.drawPath(mArrowPath, mArrowPaint);
+    }
+
 
 
     protected void initStrings() {
