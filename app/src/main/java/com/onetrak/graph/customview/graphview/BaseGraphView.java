@@ -4,7 +4,9 @@ import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.DashPathEffect;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.RectF;
 import android.text.Layout;
 import android.text.StaticLayout;
@@ -26,6 +28,7 @@ public abstract class BaseGraphView extends View {
     int mBackLineColor;
     int mDesiredWidth;
     boolean mFillNa;
+    double mGoal;
     String[] months;
 
     // Rects
@@ -38,6 +41,19 @@ public abstract class BaseGraphView extends View {
     Paint mStripePaint;
     TextPaint mTextPaint;
     Paint mLinePaint;
+    Paint mGoalPaint;
+    TextPaint mGoalTextPaint;
+
+    float[] intervals;
+
+    // Paths
+    Path mGoalPath;
+
+
+    // Layout sizes
+    float goalStart;
+    float goalEnd;
+    double firstLineHeight;
 
 
     // Layout data
@@ -55,21 +71,28 @@ public abstract class BaseGraphView extends View {
     float[] labelsUnderX;
     float[] labelsUnderY;
     StaticLayout[] textUnderStripes;
-
+    float[] horizontalLinesH;
+    StaticLayout[] weightsTextLayout;
 
     // Constants
+    public float textBorder = 0.5f;
+    public float footerRatio = 0.1f;
     public static float leftStripe;
     public static final float headerRatio = 0.05f;
-    public static final float footerRatio = 0.1f;
     public static final float borderRatio = 0.1f;
-    public static final double graphRatio = (float) 1 - headerRatio - footerRatio - 2 * borderRatio;
+    public static final float stripLength = 5f;
+    public static int graphStep = 10;
+    public final double graphRatio = (float) 1 - headerRatio - footerRatio - 2 * borderRatio;
     public static final int minStripeDp = 50;
     public static final float textRatio = 0.62f;
+    public static final int preferredNumLines = 5;
     public final String testText = "70 " + getContext().getString(R.string.localMeasurementSystem);
 
     // String constants
     public String graphErrorText = getContext().getString(R.string.graphError);
-
+    public String localMeasurementSystem = getContext().getString(R.string.localMeasurementSystem);
+    public String goalLineText = "goal";
+    String[] weightsText;
 
     public BaseGraphView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -94,6 +117,7 @@ public abstract class BaseGraphView extends View {
 
         mErrRectF = new RectF();
         mStripeRectF = new RectF();
+        mGoalPath = new Path();
 
     }
 
@@ -112,6 +136,14 @@ public abstract class BaseGraphView extends View {
 
         mLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mLinePaint.setColor(mBackLineColor);
+
+        mGoalPaint = new Paint();
+        mGoalPaint.setAntiAlias(false);
+        mGoalPaint.setStyle(Paint.Style.STROKE);
+        intervals = new float[]{stripLength, stripLength};
+        mGoalPaint.setPathEffect(new DashPathEffect(intervals, 0));
+
+        mGoalTextPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
 
     }
 
@@ -160,7 +192,7 @@ public abstract class BaseGraphView extends View {
 
             // Calculating textSize for labels under stripes months
             HelperLayoutClass.calculateOKTextSize(mTextPaint, textRatio * stripeWidth, months,
-                    belowIndent / 2);
+                    belowIndent * textBorder);
             mTextSize = (int) mTextPaint.getTextSize();
             leftStripe = mTextPaint.measureText(testText) + mTextSize / 2;
             stripeWidth = (w - leftStripe) / months.length;
@@ -188,11 +220,38 @@ public abstract class BaseGraphView extends View {
                 textUnderStripes[i] = new StaticLayout(months[i], mTextPaint,
                         (int) (textRatio * stripeWidth),
                         Layout.Alignment.ALIGN_NORMAL, 1, 1, true);
+            mGoalPaint.setStrokeWidth(graphStrokeWidth / 2);
 
         }
         setMeasuredDimension(w, h);
 
     }
+
+    protected void calculateLinesHeights(int h) {
+        graphStep = (int) (linesMax - linesMin) / preferredNumLines;
+        firstLineHeight = (int) (linesMin + linesMin % graphStep);
+
+
+        // Sorry for that shitty piece of code, I'm just lazy to make it right
+        int actualNumberOfLines = 0;
+        for (double curHeight = firstLineHeight; curHeight < linesMax; curHeight += graphStep)
+            ++actualNumberOfLines;
+
+        horizontalLinesH = new float[actualNumberOfLines];
+        weightsText = new String[actualNumberOfLines];
+        weightsTextLayout = new StaticLayout[actualNumberOfLines];
+
+
+        int i = 0;
+        for (double curHeight = firstLineHeight; curHeight < linesMax; curHeight += graphStep, i++) {
+            horizontalLinesH[i] = convertValuetoHeight(curHeight, h);
+            weightsText[i] = Integer.toString((int) curHeight) + " "
+                    + localMeasurementSystem;
+            weightsTextLayout[i] = new StaticLayout(weightsText[i], mTextPaint,
+                    (int) (leftStripe), Layout.Alignment.ALIGN_NORMAL, 1, 1, true);
+        }
+    }
+
 
     @Override
     protected void onDraw(Canvas canvas) {
@@ -259,10 +318,46 @@ public abstract class BaseGraphView extends View {
     }
 
 
+    protected void drawHorizontalLinesAndText(Canvas canvas) {
+        int i = 0;
+        for (double curHeight = firstLineHeight; curHeight < linesMax; curHeight += graphStep, i++) {
+            if (horizontalLinesH[i] < goalStart || horizontalLinesH[i] > goalEnd + 5 * mTextSize / 4) {
+                canvas.drawLine(0, horizontalLinesH[i], canvas.getWidth(), horizontalLinesH[i], mLinePaint);
+                float xPos = mTextSize / 4;
+                float yPos = horizontalLinesH[i] - 5 * mTextSize / 4;
+                canvas.translate(xPos, yPos);
+                weightsTextLayout[i].draw(canvas);
+                canvas.translate(-xPos, -yPos);
+            }
+        }
+
+    }
+
     public float convertValuetoHeight(Double value, float canvasHeight) {
         float indentValue = (headerRatio + borderRatio) * canvasHeight;
         float scaledValue = (float) ((linesMax - value) / (linesMax - linesMin) * graphRatio * canvasHeight);
         return indentValue + scaledValue;
+    }
+
+    public void drawGoalLineAndText(Canvas canvas) {
+        if (mGoal != 0) {
+            float value = convertValuetoHeight(mGoal, canvas.getHeight());
+
+            // Draw line
+            mGoalPath.reset();
+            mGoalPath.moveTo(0, value);
+            mGoalPath.lineTo(canvas.getWidth(), value);
+            canvas.drawPath(mGoalPath, mGoalPaint);
+
+            // Draw text
+            mGoalTextPaint.setTextSize(mTextSize);
+            canvas.drawText(goalLineText,
+                    mTextSize / 2, value - mTextSize / 2, mGoalTextPaint);
+
+            // Count constraints
+            goalStart = value - 3 * mTextSize / 2;
+            goalEnd = value;
+        }
     }
 
     protected void initStrings() {};
@@ -333,6 +428,18 @@ public abstract class BaseGraphView extends View {
 
     public void setMonths(String[] months) {
         this.months = months;
+
+        init();
+        invalidate();
+        requestLayout();
+    }
+
+    public double getGoal() {
+        return mGoal;
+    }
+
+    public void setGoal(double mGoal) {
+        this.mGoal = mGoal;
 
         init();
         invalidate();

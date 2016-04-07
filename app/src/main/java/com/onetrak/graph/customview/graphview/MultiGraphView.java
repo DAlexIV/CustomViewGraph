@@ -6,6 +6,9 @@ import android.graphics.Color;
 import android.graphics.CornerPathEffect;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.text.Layout;
+import android.text.StaticLayout;
+import android.text.TextPaint;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 
@@ -29,6 +32,7 @@ public class MultiGraphView extends BaseGraphView {
     Paint[] graphsPaints;
     Paint linePaint;
     Paint smallCirclePaint;
+    TextPaint mBlackPaint;
     Paint[] bigCirclePaint;
 
     // Current state
@@ -39,6 +43,7 @@ public class MultiGraphView extends BaseGraphView {
     float[][] convertedX;
     float[][] convertedY;
     float[][] convertedYDraw;
+    StaticLayout highlightedText;
 
     // Paths
     Path[] graphPaths;
@@ -53,10 +58,11 @@ public class MultiGraphView extends BaseGraphView {
     public static long segmentDuration = 250;
     public static int framesPerSecond = 60;
 
-
     // Event handling
     private static final int MAX_CLICK_DURATION = 200;
     private long startClickTime = 0;
+
+
 
 
     public MultiGraphView(Context context, AttributeSet attrs) {
@@ -64,6 +70,8 @@ public class MultiGraphView extends BaseGraphView {
         super(context, attrs);
 
         restore();
+        footerRatio = 0.07f;
+        textBorder = 0.7f;
     }
 
     private void restore() {
@@ -79,7 +87,7 @@ public class MultiGraphView extends BaseGraphView {
         if (months != null && values != null && colors != null) {
 
             microInterval = stripeWidth / (valuesPerStripe * 2);
-            microDuration = segmentDuration / (valuesPerStripe * 2);
+            microDuration = segmentDuration / valuesPerStripe;
             animationDuration = segmentDuration * months.length;
             calcXAndYValues();
             calculateDrawValues();
@@ -116,6 +124,10 @@ public class MultiGraphView extends BaseGraphView {
             bigCirclePaint[i] = new Paint(Paint.ANTI_ALIAS_FLAG);
             bigCirclePaint[i].setColor(colors[i]);
         }
+
+        mBlackPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        mBlackPaint.setColor(Color.BLACK);
+        mBlackPaint.setTextSize(mTextSize);
     }
 
     protected void findMinAndMax() {
@@ -200,7 +212,14 @@ public class MultiGraphView extends BaseGraphView {
 
             }
         }
+
+        if (stripeId != -1) {
+            highlightedText = new StaticLayout(months[stripeId], mBlackPaint,
+                    (int) (textRatio * stripeWidth),
+                    Layout.Alignment.ALIGN_NORMAL, 1, 1, true);
+        }
     }
+
 
     protected double countMinFNa(double[][] valuesAndGoal, double max) {
         double min = max;
@@ -226,6 +245,12 @@ public class MultiGraphView extends BaseGraphView {
                         if (x >= leftStripe) {
                             microId = (int) ((x - leftStripe) / (2 * microInterval));
                             stripeId = (int) ((x - leftStripe) / stripeWidth);
+
+                            if (months != null && stripeId >= months.length)
+                                stripeId = months.length - 1;
+
+                            if (months != null && microId >= valuesPerStripe * months.length)
+                                microId = valuesPerStripe * months.length - 1;
                         }
                     }
                     invalidate();
@@ -252,6 +277,7 @@ public class MultiGraphView extends BaseGraphView {
 
             if (microId != -1) {
                 drawCircles(canvas);
+                drawHiglightedText(canvas);
             }
 
             if (curTime < animationDuration)
@@ -276,9 +302,9 @@ public class MultiGraphView extends BaseGraphView {
                         graphPaths[i].lineTo(convertedX[i][k], convertedYDraw[i][k]);
                     else if (curTime / microDuration == k - 1) {
                         float curX = convertedX[i][k - 1] + (convertedX[i][k] - convertedX[i][k - 1])
-                                * ((float) (curTime - (k - 1) * microDuration / microDuration));
+                                * ((float) (curTime - (k - 1) * microDuration) / microDuration);
                         float curY = convertedYDraw[i][k - 1] + (convertedYDraw[i][k] - convertedYDraw[i][k - 1])
-                                * ((float) (curTime - (k - 1) * microDuration / microDuration));
+                                * ((float) (curTime - (k - 1) * microDuration) / microDuration);
 
                         graphPaths[i].lineTo(curX, curY);
 
@@ -307,6 +333,14 @@ public class MultiGraphView extends BaseGraphView {
                     smallCirclePaint);
         }
     }
+
+    private void drawHiglightedText(Canvas canvas) {
+        canvas.translate(labelsUnderX[stripeId], labelsUnderY[stripeId]);
+        highlightedText.draw(canvas);
+        canvas.translate(-labelsUnderX[stripeId], -labelsUnderY[stripeId]);
+    }
+
+
 
     public int getValuesPerStripe() {
         return valuesPerStripe;

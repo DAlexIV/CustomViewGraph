@@ -31,14 +31,11 @@ public class UnoGraphView extends BaseGraphView {
     // Public data
     double[] values;
     int mGraphLineColor;
-    double mGoal;
 
     // Rects
     RectF mHighRectF;
 
     // Paints
-    Paint mGoalPaint;
-    TextPaint mGoalTextPaint;
     Paint mGraphPaint;
     Paint mBigCirclePaint;
     Paint mSmallCirclePaint;
@@ -51,18 +48,10 @@ public class UnoGraphView extends BaseGraphView {
     // Paths
     Path mGraphPath;
     Path mGradPath;
-    Path mGoalPath;
     Path mUpperTrianglePath;
     Path mLowerTrianglePath;
     Path mHighlightPath;
 
-    float[] intervals;
-
-    // Layout sizes
-
-    float goalStart;
-    float goalEnd;
-    double firstLineHeight;
 
     Point[] lowerTrianglePoints;
     Point[] upperTrianglePoints;
@@ -83,7 +72,6 @@ public class UnoGraphView extends BaseGraphView {
     // Constants
     public static final float bigCircleRatio = 0.025f;
     public static final float smallCircleRatio = 0.0125f;
-    public static final float stripLength = 5f;
     public static final int preferredNumLines = 5;
     public static int graphStep = 10;
     public static int framesPerSecond = 60;
@@ -98,8 +86,7 @@ public class UnoGraphView extends BaseGraphView {
     ArrowedHorizontalScrollView hsv;
 
     // Strings from context
-    String localMeasurementSystem;
-    String goalLineText;
+
     String[] weightsText;
 
     public UnoGraphView(Context context, AttributeSet attrs) {
@@ -151,8 +138,6 @@ public class UnoGraphView extends BaseGraphView {
     @Override
     protected void initStrings() {
         super.initStrings();
-        localMeasurementSystem = getContext().getString(R.string.localMeasurementSystem);
-        goalLineText = getContext().getString(R.string.goalLineText);
     }
 
     private void initPaints() {
@@ -169,15 +154,9 @@ public class UnoGraphView extends BaseGraphView {
         mGradPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
 
-        mGoalPaint = new Paint();
-        mGoalPaint.setAntiAlias(false);
-        mGoalPaint.setColor(mGraphLineColor);
-        mGoalPaint.setStyle(Paint.Style.STROKE);
-        intervals = new float[]{stripLength, stripLength};
-        mGoalPaint.setPathEffect(new DashPathEffect(intervals, 0));
 
-        mGoalTextPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-        mGoalTextPaint.setColor(mGraphLineColor);
+
+
 
         mBigCirclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mBigCirclePaint.setColor(mGraphLineColor);
@@ -202,6 +181,9 @@ public class UnoGraphView extends BaseGraphView {
         mArrowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mArrowPaint.setColor(Color.BLACK);
         mArrowPaint.setStyle(Paint.Style.STROKE);
+
+        mGoalPaint.setColor(mGraphLineColor);
+        mGoalTextPaint.setColor(mGraphLineColor);
     }
 
 
@@ -212,7 +194,6 @@ public class UnoGraphView extends BaseGraphView {
         // Changing width of lines with corrections after measurement
         if (months != null && values != null) {
 
-            mGoalPaint.setStrokeWidth(graphStrokeWidth / 2);
 
             mGraphPaint.setStrokeWidth(graphStrokeWidth);
             mGradPaint.setStrokeWidth(graphStrokeWidth);
@@ -329,30 +310,6 @@ public class UnoGraphView extends BaseGraphView {
         linesMin = mFillNa ? countMinFNa(values, linesMax, mGoal) : localMin;
     }
 
-    private void calculateLinesHeights(int h) {
-        graphStep = (int) (linesMax - linesMin) / preferredNumLines;
-        firstLineHeight = (int) (linesMin + linesMin % graphStep);
-
-
-        // Sorry for that shitty piece of code, I'm just lazy to make it right
-        int actualNumberOfLines = 0;
-        for (double curHeight = firstLineHeight; curHeight < linesMax; curHeight += graphStep)
-            ++actualNumberOfLines;
-
-        horizontalLinesH = new float[actualNumberOfLines];
-        weightsText = new String[actualNumberOfLines];
-        weightsTextLayout = new StaticLayout[actualNumberOfLines];
-
-
-        int i = 0;
-        for (double curHeight = firstLineHeight; curHeight < linesMax; curHeight += graphStep, i++) {
-            horizontalLinesH[i] = convertValuetoHeight(curHeight, h);
-            weightsText[i] = Integer.toString((int) curHeight) + " "
-                    + localMeasurementSystem;
-            weightsTextLayout[i] = new StaticLayout(weightsText[i], mTextPaint,
-                    (int) (leftStripe), Layout.Alignment.ALIGN_NORMAL, 1, 1, true);
-        }
-    }
 
     protected double countMinFNa(double[] valuesAndGoal, double max, double mGoal) {
         double min = max;
@@ -400,6 +357,8 @@ public class UnoGraphView extends BaseGraphView {
                         if (x >= leftStripe) {
                             stripeId = (int) ((x - leftStripe) / stripeWidth);
 
+                            if (months != null && stripeId >= months.length)
+                                stripeId = months.length - 1;
                         }
                     }
                     invalidate();
@@ -454,43 +413,6 @@ public class UnoGraphView extends BaseGraphView {
             canvas.drawRect(mHighRectF, mHighlightStripePaint);
 
         }
-    }
-
-
-    private void drawGoalLineAndText(Canvas canvas) {
-        if (mGoal != 0) {
-            float value = convertValuetoHeight(mGoal, canvas.getHeight());
-
-            // Draw line
-            mGoalPath.reset();
-            mGoalPath.moveTo(0, value);
-            mGoalPath.lineTo(canvas.getWidth(), value);
-            canvas.drawPath(mGoalPath, mGoalPaint);
-
-            // Draw text
-            mGoalTextPaint.setTextSize(mTextSize);
-            canvas.drawText(goalLineText,
-                    mTextSize / 2, value - mTextSize / 2, mGoalTextPaint);
-
-            // Count constraints
-            goalStart = value - 3 * mTextSize / 2;
-            goalEnd = value;
-        }
-    }
-
-    private void drawHorizontalLinesAndText(Canvas canvas) {
-        int i = 0;
-        for (double curHeight = firstLineHeight; curHeight < linesMax; curHeight += graphStep, i++) {
-            if (horizontalLinesH[i] < goalStart || horizontalLinesH[i] > goalEnd + 5 * mTextSize / 4) {
-                canvas.drawLine(0, horizontalLinesH[i], canvas.getWidth(), horizontalLinesH[i], mLinePaint);
-                float xPos = mTextSize / 4;
-                float yPos = horizontalLinesH[i] - 5 * mTextSize / 4;
-                canvas.translate(xPos, yPos);
-                weightsTextLayout[i].draw(canvas);
-                canvas.translate(-xPos, -yPos);
-            }
-        }
-
     }
 
     private void drawGraphLines(final Canvas canvas) {
@@ -628,19 +550,6 @@ public class UnoGraphView extends BaseGraphView {
 
     public void setmDesiredWidth(int mDesiredWidth) {
         this.mDesiredWidth = mDesiredWidth;
-
-        init();
-        invalidate();
-        requestLayout();
-    }
-
-
-    public double getGoal() {
-        return mGoal;
-    }
-
-    public void setGoal(double mGoal) {
-        this.mGoal = mGoal;
 
         init();
         invalidate();
