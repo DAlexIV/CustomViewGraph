@@ -37,6 +37,7 @@ public class MultiGraphView extends BaseGraphView {
     // Current state
     int microId;
     int stripeId;
+    float curX;
 
     // Layout arrays
     float[][] convertedX;
@@ -46,9 +47,6 @@ public class MultiGraphView extends BaseGraphView {
 
     // Paths
     Path[] graphPaths;
-
-    // Parent
-    ArrowedHorizontalScrollView hsv;
 
     // Constants
     public static float microInterval;
@@ -263,7 +261,6 @@ public class MultiGraphView extends BaseGraphView {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         if (months != null && values != null && colors != null) {
-            hsv = (ArrowedHorizontalScrollView) getParent();
             // Measure animation time
             curTime = System.currentTimeMillis() - startTime;
 
@@ -272,8 +269,10 @@ public class MultiGraphView extends BaseGraphView {
             }
 
             drawHorizontalLines(canvas);
-            drawHorizontalText(canvas, 0);
+            drawGoalLine(canvas);
             drawGraph(canvas);
+
+            drawLeftStripe(canvas);
 
             if (microId != -1) {
                 drawCircles(canvas);
@@ -283,6 +282,7 @@ public class MultiGraphView extends BaseGraphView {
 
             if (curTime < animationDuration) {
                 postInvalidateDelayed(1000 / framesPerSecond);
+                hsv.scrollTo((int) (curX - hsv.getWidth() / 2), 0);
             }
 
             hsv.setAnimationFinished(!(curTime < animationDuration));
@@ -291,11 +291,18 @@ public class MultiGraphView extends BaseGraphView {
         }
     }
 
+    private void drawLeftStripe(Canvas canvas) {
+        canvas.drawRect(mLeftRect, mRectPaint);
+        drawHorizontalText(canvas, hsv.getScrollX());
+        drawGoalText(canvas, hsv.getScrollX());
+        drawLimitedHorizontalLines(canvas, hsv.getScrollX() + leftStripe);
+        drawGoalLineLimited(canvas, hsv.getScrollX() + leftStripe);
+    }
+
     private void drawGraph(Canvas canvas) {
         for (int i = 0; i < values.length; ++i)
             graphPaths[i].reset();
 
-        boolean scrolled = false;
         for (int i = 0; i < convertedX.length; ++i) {
             for (int k = 0; k < convertedX[i].length; ++k) {
                 if (k == 0)
@@ -304,17 +311,14 @@ public class MultiGraphView extends BaseGraphView {
                     if (curTime / microDuration > k - 1)
                         graphPaths[i].lineTo(convertedX[i][k], convertedYDraw[i][k]);
                     else if (curTime / microDuration == k - 1) {
-                        float curX = convertedX[i][k - 1] + (convertedX[i][k] - convertedX[i][k - 1])
+                        float curPosX = convertedX[i][k - 1] + (convertedX[i][k] - convertedX[i][k - 1])
                                 * ((float) (curTime - (k - 1) * microDuration) / microDuration);
-                        float curY = convertedYDraw[i][k - 1] + (convertedYDraw[i][k] - convertedYDraw[i][k - 1])
+                        float curPosY = convertedYDraw[i][k - 1] + (convertedYDraw[i][k] - convertedYDraw[i][k - 1])
                                 * ((float) (curTime - (k - 1) * microDuration) / microDuration);
 
-                        graphPaths[i].lineTo(curX, curY);
+                        graphPaths[i].lineTo(curPosX, curPosY);
 
-                        if (!scrolled) {
-                            hsv.scrollTo((int) (curX - hsv.getWidth() / 2), 0);
-                            scrolled = true;
-                        }
+                        curX = curPosX;
                         break;
                     }
                 }

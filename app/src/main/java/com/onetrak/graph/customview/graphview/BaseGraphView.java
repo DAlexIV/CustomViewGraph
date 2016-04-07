@@ -234,9 +234,7 @@ public abstract class BaseGraphView extends View {
         }
         setMeasuredDimension(w, h);
 
-        if (hsv == null) {
-            hsv = (ArrowedHorizontalScrollView) getParent();
-        }
+
     }
 
     protected void calculateLinesHeights(int h) {
@@ -271,6 +269,9 @@ public abstract class BaseGraphView extends View {
         if (months == null) {
             displayError(canvas);
         } else {
+            if (hsv == null) {
+                hsv = (ArrowedHorizontalScrollView) BaseGraphView.this.getParent();
+            }
             drawBackground(canvas);
 
             mLeftRect.set(hsv.getScrollX() - leftStripe, 0,
