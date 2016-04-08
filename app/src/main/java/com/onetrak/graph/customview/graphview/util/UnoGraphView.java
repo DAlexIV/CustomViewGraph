@@ -1,10 +1,9 @@
-package com.onetrak.graph.customview.graphview;
+package com.onetrak.graph.customview.graphview.util;
 
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.DashPathEffect;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
@@ -13,7 +12,6 @@ import android.graphics.RectF;
 import android.graphics.Shader;
 import android.text.Layout;
 import android.text.StaticLayout;
-import android.text.TextPaint;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 
@@ -64,8 +62,6 @@ public class UnoGraphView extends BaseGraphView {
     long[] timeAnim;
     float[] originalX;
     float[] originalY;
-    float[] horizontalLinesH;
-    StaticLayout[] weightsTextLayout;
     StaticLayout goalUnderStripes;
 
     // Constants
@@ -77,9 +73,6 @@ public class UnoGraphView extends BaseGraphView {
     public static long segmentDuration = 250;
 
 
-    // Event handling
-    private static final int MAX_CLICK_DURATION = 200;
-    private long startClickTime = 0;
 
 
     // Strings from context
@@ -181,17 +174,15 @@ public class UnoGraphView extends BaseGraphView {
 
 
     @Override
-    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+    public void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 
         // Changing width of lines with corrections after measurement
         if (months != null && values != null) {
-
-
             mGraphPaint.setStrokeWidth(graphStrokeWidth);
             mGradPaint.setStrokeWidth(graphStrokeWidth);
 
-            mGradPaint.setShader(new LinearGradient(0, 0, 0, getHeight(),
+            mGradPaint.setShader(new LinearGradient(0, 0, 0, h,
                     Color.argb(160, Color.red(mGraphLineColor), Color.green(mGraphLineColor),
                             Color.blue(mGraphLineColor)),
                     Color.argb(8, Color.red(mGraphLineColor), Color.green(mGraphLineColor),
@@ -249,7 +240,7 @@ public class UnoGraphView extends BaseGraphView {
             float valueX = leftStripe + stripeWidth * ((float) i + 0.5f);
             float valueY = convertValuetoHeight(values[i], h);
 
-            if (values[i] != 0) {
+            if ((mFillNa && values[i] != 0) || !mFillNa)  {
                 tempAnim[last] = curAnimDur;
                 circleCentresXCount[last] = valueX;
                 valuesRealHeightCount[last] = valueY;
@@ -285,12 +276,12 @@ public class UnoGraphView extends BaseGraphView {
 
     protected void findMinAndMax() {
         // Precalculate data for lines
-        double localMax = 0;
-        double localMin = 0;
+        double localMax = -1;
+        double localMin = -1;
         for (int i = 0; i < values.length; ++i) {
-            if (values[i] > localMax)
+            if (localMax == -1 || values[i] > localMax)
                 localMax = values[i];
-            if (localMin < values[i])
+            if (localMin == -1 || localMin> values[i])
                 localMin = values[i];
         }
 
@@ -318,7 +309,7 @@ public class UnoGraphView extends BaseGraphView {
     }
 
     @Override
-    protected void onDraw(Canvas canvas) {
+    public void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         if (months != null && values != null) {
             drawAdditionalBackground(canvas);
@@ -332,6 +323,7 @@ public class UnoGraphView extends BaseGraphView {
             drawGoalText(canvas, hsv.getScrollX());
             drawLimitedHorizontalLines(canvas, hsv.getScrollX() + leftStripe);
             drawGoalLineLimited(canvas, hsv.getScrollX() + leftStripe);
+            drawArrows(canvas);
 
             if (curTime < animationDuration) {
                 postInvalidateDelayed(1000 / framesPerSecond);

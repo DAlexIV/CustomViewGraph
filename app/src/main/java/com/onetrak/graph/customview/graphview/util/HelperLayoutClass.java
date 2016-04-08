@@ -1,4 +1,4 @@
-package com.onetrak.graph.customview.graphview;
+package com.onetrak.graph.customview.graphview.util;
 
 import android.content.Context;
 import android.content.res.Resources;

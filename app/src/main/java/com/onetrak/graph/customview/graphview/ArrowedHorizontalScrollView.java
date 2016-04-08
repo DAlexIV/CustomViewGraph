@@ -1,14 +1,11 @@
 package com.onetrak.graph.customview.graphview;
 
 import android.content.Context;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.Path;
-import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.widget.HorizontalScrollView;
+
+import com.onetrak.graph.customview.graphview.util.BaseGraphView;
 
 /**
  * Created by aleksey.ivanov on 28.03.2016.

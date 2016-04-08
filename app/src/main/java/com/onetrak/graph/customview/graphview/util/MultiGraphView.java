@@ -1,4 +1,4 @@
-package com.onetrak.graph.customview.graphview;
+package com.onetrak.graph.customview.graphview.util;
 
 import android.content.Context;
 import android.graphics.Canvas;
@@ -55,10 +55,6 @@ public class MultiGraphView extends BaseGraphView {
     public static long segmentDuration = 250;
     public static int framesPerSecond = 60;
 
-    // Event handling
-    private static final int MAX_CLICK_DURATION = 200;
-    private long startClickTime = 0;
-
 
     public MultiGraphView(Context context, AttributeSet attrs) {
 
@@ -76,7 +72,7 @@ public class MultiGraphView extends BaseGraphView {
     }
 
     @Override
-    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+    public void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 
         if (months != null && values != null && colors != null) {
@@ -258,7 +254,7 @@ public class MultiGraphView extends BaseGraphView {
     }
 
     @Override
-    protected void onDraw(Canvas canvas) {
+    public void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         if (months != null && values != null && colors != null) {
             // Measure animation time
@@ -278,7 +274,7 @@ public class MultiGraphView extends BaseGraphView {
                 drawCircles(canvas);
                 drawHiglightedText(canvas);
             }
-
+            drawArrows(canvas);
 
             if (curTime < animationDuration) {
                 postInvalidateDelayed(1000 / framesPerSecond);

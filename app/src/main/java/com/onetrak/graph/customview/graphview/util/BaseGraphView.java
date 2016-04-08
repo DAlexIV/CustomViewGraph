@@ -1,4 +1,4 @@
-package com.onetrak.graph.customview.graphview;
+package com.onetrak.graph.customview.graphview.util;
 
 import android.content.Context;
 import android.content.res.TypedArray;
@@ -12,11 +12,13 @@ import android.text.Layout;
 import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.util.AttributeSet;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.HorizontalScrollView;
 
 import com.onetrak.graph.customview.R;
+import com.onetrak.graph.customview.graphview.ArrowedHorizontalScrollView;
+import com.onetrak.graph.customview.graphview.data.UnoGraphData;
 
 /**
  * Created by aleksey.ivanov on 01.04.2016.
@@ -104,6 +106,15 @@ public abstract class BaseGraphView extends View {
     // Parent
     ArrowedHorizontalScrollView hsv;
 
+    // Saved data
+    Context context;
+    AttributeSet attributeSet;
+
+    // Event handling
+    protected static final int MAX_CLICK_DURATION = 200;
+    protected long startClickTime = 0;
+
+
     public BaseGraphView(Context context, AttributeSet attrs) {
         super(context, attrs);
         TypedArray a = context.getTheme().obtainStyledAttributes(
@@ -117,6 +128,9 @@ public abstract class BaseGraphView extends View {
         mTextColor = a.getInteger(R.styleable.UnoGraphView_text_color, Color.parseColor("#2a2a2a"));
         mDesiredWidth = a.getInteger(R.styleable.UnoGraphView_real_width, 0);
         mFillNa = a.getBoolean(R.styleable.UnoGraphView_fill_na, false);
+
+        this.context = context;
+        this.attributeSet = attrs;
 
         a.recycle();
         init();
@@ -170,7 +184,7 @@ public abstract class BaseGraphView extends View {
     }
 
     @Override
-    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+    public void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
         // Resolving height
         int minh = getPaddingBottom() + getPaddingTop() + getSuggestedMinimumHeight();
@@ -220,7 +234,7 @@ public abstract class BaseGraphView extends View {
             stripeWidth = (w - leftStripe) / months.length;
             graphStrokeWidth = h / 100;
             mLinePaint.setStrokeWidth(graphStrokeWidth / 4);
-            mArrowPaint.setStrokeWidth(getHeight() * lineRatio);
+            mArrowPaint.setStrokeWidth(h * lineRatio);
 
             // Precalc textSizes
             monthsMeasured = new float[months.length];
@@ -277,8 +291,33 @@ public abstract class BaseGraphView extends View {
     }
 
 
+//    @Override
+//    public boolean onTouchEvent(MotionEvent event) {
+//        switch (event.getAction()) {
+//            case MotionEvent.ACTION_DOWN:
+//                startClickTime = System.currentTimeMillis();
+//                return true;
+//            case MotionEvent.ACTION_UP:
+//                long clickDuration = System.currentTimeMillis() - startClickTime;
+//                if (clickDuration < MAX_CLICK_DURATION) {
+//                    invalidate();
+//                    requestLayout();
+//                }
+//                return true;
+//        }
+//        return false;
+//    }
+
+
+    protected void drawArrows(Canvas canvas) {
+        if (hsv.getScrollX() != 0)
+            drawLeftArrow(canvas, BaseGraphView.leftStripe + hsv.getScrollX());
+        if (hsv.getScrollX() + hsv.getWidth() != getWidth())
+            drawRightArrow(canvas, hsv.getScrollX() + hsv.getWidth());
+    }
+
     @Override
-    protected void onDraw(Canvas canvas) {
+    public void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         if (months == null) {
             displayError(canvas);
@@ -290,11 +329,7 @@ public abstract class BaseGraphView extends View {
 
             mLeftRect.set(hsv.getScrollX() - leftStripe, 0,
                     hsv.getScrollX() + leftStripe, getHeight());
-
-            if (hsv.getScrollX() != 0)
-                drawLeftArrow(canvas, BaseGraphView.leftStripe + hsv.getScrollX());
-            if (hsv.getScrollX() + hsv.getWidth() != getWidth())
-                drawRightArrow(canvas, hsv.getScrollX() + hsv.getWidth());
+            drawArrows(canvas);
         }
     }
 
@@ -409,6 +444,7 @@ public abstract class BaseGraphView extends View {
             goalEnd = value;
         }
     }
+
     protected void drawGoalLineLimited(Canvas canvas, float limit) {
         if (mGoal != 0) {
             float value = convertValuetoHeight(mGoal, canvas.getHeight());
@@ -456,7 +492,6 @@ public abstract class BaseGraphView extends View {
         mArrowPath.lineTo(globalIndent - 3 * indent, canvas.getHeight() - belowIndent - indent);
         canvas.drawPath(mArrowPath, mArrowPaint);
     }
-
 
 
     protected void initStrings() {
@@ -544,6 +579,15 @@ public abstract class BaseGraphView extends View {
         init();
         invalidate();
         requestLayout();
+    }
+
+
+    public int getmDesiredWidth() {
+        return mDesiredWidth;
+    }
+
+    public void setmDesiredWidth(int mDesiredWidth) {
+        this.mDesiredWidth = mDesiredWidth;
     }
 
     protected abstract void findMinAndMax();
