@@ -58,12 +58,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setUnoData() {
-        if (++dataUnoId == datasets.length)
+        if (++dataUnoId >= datasets.length)
             dataUnoId = 0;
 
-        if (dataUnoId >= 0) {
+        if (dataUnoId >= 0 && dataUnoId < datasets.length) {
             mGraphView.setupUnoGraph(datasets[dataUnoId]);
         }
+
+
     }
 
     private void setMultiData() {
