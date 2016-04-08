@@ -31,4 +31,8 @@ public class MultiGraphData extends BaseGraphData {
         return valuesPerStripe;
     }
 
+    @Override
+    public Graphs getType() {
+        return Graphs.Multi;
+    }
 }

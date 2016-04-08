@@ -15,4 +15,9 @@ public class UnoGraphData extends BaseGraphData{
     public double[] getValues() {
         return values;
     }
+
+    @Override
+    public Graphs getType() {
+        return Graphs.Uno;
+    }
 }

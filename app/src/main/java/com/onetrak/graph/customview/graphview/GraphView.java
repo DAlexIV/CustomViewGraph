@@ -64,23 +64,32 @@ public class GraphView extends View {
         fillNa = curGraph.ismFillNa();
         desiredWidth = curGraph.getmDesiredWidth();
 
-        if (data instanceof UnoGraphData)
-            curGraph = new UnoGraphView(context, attrs);
-        else if (data instanceof MultiGraphData)
-            curGraph = new MultiGraphView(context, attrs);
+        switch (data.getType()) {
+            case Uno:
+                curGraph = new UnoGraphView(context, attrs);
+                break;
+            case Multi:
+                curGraph = new MultiGraphView(context, attrs);
+                break;
+            default:
+                throw new IllegalArgumentException("Wrong type of graph");
+        }
 
         curGraph.setMonths(data.getMonths());
         curGraph.setGoal(data.getGoal());
         curGraph.setMonths(data.getMonths());
         curGraph.setmFillNa(fillNa);
         curGraph.setmDesiredWidth(desiredWidth);
-        if (data instanceof UnoGraphData) {
-            ((UnoGraphView) curGraph).setValues(((UnoGraphData) data).getValues());
-        } else if (data instanceof MultiGraphData) {
-            MultiGraphData detData = (MultiGraphData) data;
-            ((MultiGraphView) curGraph).setValuesPerStripe(detData.getValuesPerStripe());
-            ((MultiGraphView) curGraph).setValues(detData.getValues());
-            ((MultiGraphView) curGraph).setColors(detData.getColors());
+
+        switch (data.getType()) {
+            case Uno:
+                ((UnoGraphView) curGraph).setValues(((UnoGraphData) data).getValues());
+                break;
+            case Multi:
+                ((MultiGraphView) curGraph).setValuesPerStripe(((MultiGraphData) data).getValuesPerStripe());
+                ((MultiGraphView) curGraph).setValues(((MultiGraphData) data).getValues());
+                ((MultiGraphView) curGraph).setColors(((MultiGraphData) data).getColors());
+                break;
         }
 
         if (hsv == null)
