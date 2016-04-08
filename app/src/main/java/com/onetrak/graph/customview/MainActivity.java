@@ -62,7 +62,7 @@ public class MainActivity extends AppCompatActivity {
             dataUnoId = 0;
 
         if (dataUnoId >= 0 && dataUnoId < datasets.length) {
-            mGraphView.setupUnoGraph(datasets[dataUnoId]);
+            mGraphView.setupGraph(datasets[dataUnoId]);
         }
 
 
@@ -99,7 +99,7 @@ public class MainActivity extends AppCompatActivity {
                 ContextCompat.getColor(this, R.color.colorPrimary),
                 ContextCompat.getColor(this, R.color.colorPrimaryDark)});
 
-        mGraphView.setupMultiGraph(data);
+        mGraphView.setupGraph(data);
     }
 
     private void setRandomValues() {
@@ -118,7 +118,7 @@ public class MainActivity extends AppCompatActivity {
                 ContextCompat.getColor(this, R.color.colorPrimary),
                 ContextCompat.getColor(this, R.color.colorPrimaryDark)});
 
-        mGraphView.setupMultiGraph(data);
+        mGraphView.setupGraph(data);
 
     }
 
@@ -138,6 +138,6 @@ public class MainActivity extends AppCompatActivity {
                 Color.parseColor("#8AD9DB"),
                 Color.parseColor("#006569")});
 
-        mGraphView.setupMultiGraph(data);
+        mGraphView.setupGraph(data);
     }
 }

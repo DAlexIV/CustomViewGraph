@@ -6,6 +6,7 @@ import android.util.AttributeSet;
 import android.view.View;
 import android.widget.HorizontalScrollView;
 
+import com.onetrak.graph.customview.graphview.data.BaseGraphData;
 import com.onetrak.graph.customview.graphview.data.MultiGraphData;
 import com.onetrak.graph.customview.graphview.data.UnoGraphData;
 import com.onetrak.graph.customview.graphview.util.BaseGraphView;
@@ -59,17 +60,28 @@ public class GraphView extends View {
         curGraph.draw(canvas);
     }
 
-    public void setupUnoGraph(UnoGraphData data) {
+    public void setupGraph(BaseGraphData data) {
         fillNa = curGraph.ismFillNa();
         desiredWidth = curGraph.getmDesiredWidth();
 
-        curGraph = new UnoGraphView(context, attrs);
+        if (data instanceof UnoGraphData)
+            curGraph = new UnoGraphView(context, attrs);
+        else if (data instanceof MultiGraphData)
+            curGraph = new MultiGraphView(context, attrs);
+
         curGraph.setMonths(data.getMonths());
         curGraph.setGoal(data.getGoal());
         curGraph.setMonths(data.getMonths());
         curGraph.setmFillNa(fillNa);
         curGraph.setmDesiredWidth(desiredWidth);
-        ((UnoGraphView) curGraph).setValues(data.getValues());
+        if (data instanceof UnoGraphData) {
+            ((UnoGraphView) curGraph).setValues(((UnoGraphData) data).getValues());
+        } else if (data instanceof MultiGraphData) {
+            MultiGraphData detData = (MultiGraphData) data;
+            ((MultiGraphView) curGraph).setValuesPerStripe(detData.getValuesPerStripe());
+            ((MultiGraphView) curGraph).setValues(detData.getValues());
+            ((MultiGraphView) curGraph).setColors(detData.getColors());
+        }
 
         if (hsv == null)
             hsv = (HorizontalScrollView) getParent();
@@ -79,25 +91,5 @@ public class GraphView extends View {
 
         curGraph.invalidate();
         curGraph.requestLayout();
-    }
-
-    public void setupMultiGraph(MultiGraphData data) {
-        fillNa = curGraph.ismFillNa();
-        desiredWidth = curGraph.getmDesiredWidth();
-
-        curGraph = new MultiGraphView(context, attrs);
-        curGraph.setMonths(data.getMonths());
-        curGraph.setGoal(data.getGoal());
-        curGraph.setmFillNa(fillNa);
-        curGraph.setmDesiredWidth(desiredWidth);
-        ((MultiGraphView) curGraph).setValuesPerStripe(data.getValuesPerStripe());
-        ((MultiGraphView) curGraph).setValues(data.getValues());
-        ((MultiGraphView) curGraph).setColors(data.getColors());
-
-        if (hsv == null)
-            hsv = (HorizontalScrollView) getParent();
-
-        hsv.removeAllViews();
-        hsv.addView(curGraph);
     }
 }
